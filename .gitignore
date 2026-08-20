@@ -1,0 +1,12 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+tmdb_5000_credits - Copy.csv
+.system_generated/
+.gemini/
+
