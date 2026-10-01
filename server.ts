@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
@@ -30,10 +31,25 @@ import {
 } from "./src/services/ml_engine";
 import { routeChatMessage } from "./src/services/chatbot_router";
 import { extractScriptMetrics, generateScriptQualitativeFeedback } from "./src/services/script_intelligence";
+import {
+  getActiveAudienceTests,
+  createAudienceConceptTest,
+  submitAudienceVote,
+  getAudienceValidationAnalytics,
+  getProducerTrackedProjects,
+  saveProducerProject,
+  getLiveMarketDashboardData
+} from "./src/services/audience_live_engine";
 import { UserProfile, UserRole, ModelAlgorithm } from "./src/types";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const getFilename = () => {
+  try {
+    return fileURLToPath(import.meta.url);
+  } catch {
+    return process.cwd();
+  }
+};
+const _resolvedDirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(getFilename());
 
 // In-memory User store
 const usersStore: Map<string, UserProfile & { passwordHash: string }> = new Map();
@@ -68,7 +84,7 @@ function getGemini(): GoogleGenAI | null {
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
@@ -157,14 +173,14 @@ async function startServer() {
     return res.json(results);
   });
 
-  // Data Provenance endpoint
-  app.get("/api/data-provenance", (_req, res) => {
+  // Data Provenance endpoint (and alias)
+  app.get(["/api/data-provenance", "/api/provenance"], (_req, res) => {
     const provenance = getDataProvenanceStats();
     return res.json(provenance);
   });
 
-  // Producer Live Audience Intelligence endpoint
-  app.get("/api/audience/intelligence", (_req, res) => {
+  // Producer Live Audience Intelligence endpoint (and alias)
+  app.get(["/api/audience/intelligence", "/api/audience-intel"], (_req, res) => {
     const intelligence = getAudienceIntelligenceStats();
     return res.json(intelligence);
   });
@@ -361,6 +377,63 @@ User Question: ${message}`;
     return res.json({ qualitativeFeedback });
   });
 
+  // --- AUDIENCE LAB & LIVE CINEMA ROUTES ---
+
+  // Get active Audience Tests
+  app.get("/api/audience/tests", (_req, res) => {
+    const tests = getActiveAudienceTests();
+    return res.json({ tests });
+  });
+
+  // Create new Audience Concept Test
+  app.post("/api/audience/tests/create", (req, res) => {
+    const { testData, producerUsername } = req.body;
+    if (!testData || !testData.title) {
+      return res.status(400).json({ error: "Test data with title is required." });
+    }
+    const newTest = createAudienceConceptTest(testData, producerUsername || "producer_demo");
+    return res.json({ test: newTest });
+  });
+
+  // Submit Viewer Vote in Audience Lab
+  app.post("/api/audience/tests/vote", (req, res) => {
+    const { testId, response } = req.body;
+    if (!testId || !response) {
+      return res.status(400).json({ error: "testId and response data are required." });
+    }
+    const result = submitAudienceVote(testId, response);
+    return res.json(result);
+  });
+
+  // Get Audience Validation Analytics for a test
+  app.get("/api/audience/analytics/:testId", (req, res) => {
+    const { testId } = req.params;
+    const analytics = getAudienceValidationAnalytics(testId);
+    return res.json({ analytics });
+  });
+
+  // Get Producer Tracked Projects (with version history)
+  app.get("/api/producer/projects", (_req, res) => {
+    const projects = getProducerTrackedProjects();
+    return res.json({ projects });
+  });
+
+  // Save Producer Project / Version Record
+  app.post("/api/producer/projects/save", (req, res) => {
+    const { project } = req.body;
+    if (!project) {
+      return res.status(400).json({ error: "Project data is required." });
+    }
+    const saved = saveProducerProject(project);
+    return res.json({ project: saved });
+  });
+
+  // Get Live Cinema & Market Dashboard Data
+  app.get("/api/live-cinema/market", (_req, res) => {
+    const market = getLiveMarketDashboardData();
+    return res.json({ market });
+  });
+
   // --- VITE / SERVING SETUP ---
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -368,6 +441,17 @@ User Question: ${message}`;
       appType: "spa",
     });
     app.use(vite.middlewares);
+    app.use("*", async (req, res, next) => {
+      const url = req.originalUrl;
+      try {
+        const indexPath = path.resolve(process.cwd(), "index.html");
+        let template = fs.readFileSync(indexPath, "utf-8");
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(template);
+      } catch (e) {
+        next(e);
+      }
+    });
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));

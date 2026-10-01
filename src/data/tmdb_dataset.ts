@@ -20,7 +20,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 162,
     original_language: "en",
     overview: "In the 22nd century, a paraplegic Marine is dispatched to the moon Pandora on a unique mission, but becomes torn between following orders and protecting an alien civilization.",
-    poster_path: "https://image.tmdb.org/t/p/w500/k1955.jpg",
+    poster_path: "https://image.tmdb.org/t/p/w500/kyeqWdyUXW608qlYkRqosgbbJyK.jpg",
     top_cast_popularity: 42.8,
     success: 1
   },
@@ -43,7 +43,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 169,
     original_language: "en",
     overview: "Captain Barbossa, Will Turner and Elizabeth Swann must sail off the edge of the map, navigate treachery and betrayal, and make their final alliances.",
-    poster_path: "https://image.tmdb.org/t/p/w500/j2007.jpg",
+    poster_path: "https://image.tmdb.org/t/p/w500/jGWpG4b4dGQFL8MwBhMuW1a72UB.jpg",
     top_cast_popularity: 58.4,
     success: 1
   },
@@ -66,6 +66,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 148,
     original_language: "en",
     overview: "A cryptic message from James Bond's past sends him on a trail to uncover the existence of a sinister organisation named SPECTRE.",
+    poster_path: "https://image.tmdb.org/t/p/w500/1n9D32o30XOHMdMWuIT4AaA5ruI.jpg",
     top_cast_popularity: 38.2,
     success: 0
   },
@@ -88,6 +89,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 165,
     original_language: "en",
     overview: "Following the death of District Attorney Harvey Dent, Batman assumes responsibility for Dent's crimes to protect Dent's reputation and is subsequently hunted by the GCPD.",
+    poster_path: "https://image.tmdb.org/t/p/w500/hr0L2aueqlP2BYUblTTjmtn0hw4.jpg",
     top_cast_popularity: 64.1,
     success: 1
   },
@@ -110,6 +112,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 152,
     original_language: "en",
     overview: "Batman raises the stakes in his war on crime. With the help of Lt. Jim Gordon and District Attorney Harvey Dent, Batman sets out to dismantle the remaining criminal organizations that plague the streets.",
+    poster_path: "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
     top_cast_popularity: 72.5,
     success: 1
   },
@@ -132,6 +135,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 148,
     original_language: "en",
     overview: "Cobb, a skilled thief who steals valuable secrets from deep within the subconscious during the dream state, is offered a chance at redemption if he can perform inception.",
+    poster_path: "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
     top_cast_popularity: 81.2,
     success: 1
   },
@@ -154,6 +158,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 169,
     original_language: "en",
     overview: "The adventures of a group of explorers who make use of a newly discovered wormhole to surpass the limitations on human space travel and conquer the vast distances involved in an interstellar voyage.",
+    poster_path: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
     top_cast_popularity: 78.4,
     success: 1
   },
@@ -176,6 +181,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 108,
     original_language: "en",
     overview: "Deadpool tells the origin story of former Special Forces operate turned mercenary Wade Wilson, who after being subjected to a rogue experiment that leaves him with accelerated healing powers, adopts the alter ego Deadpool.",
+    poster_path: "https://image.tmdb.org/t/p/w500/3E53THEQuzB7PbB9M3G2db06iMu.jpg",
     top_cast_popularity: 65.0,
     success: 1
   },
@@ -198,6 +204,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 121,
     original_language: "en",
     overview: "Light years from Earth, 26 years after being abducted, Peter Quill finds himself the prime target of a manhunt after stealing an orb coveted by the villainous Ronan.",
+    poster_path: "https://image.tmdb.org/t/p/w500/r2J02Z2OpNTctfOSN2Ydgii51I3.jpg",
     top_cast_popularity: 71.0,
     success: 1
   },
@@ -220,6 +227,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 143,
     original_language: "en",
     overview: "When an unexpected enemy emerges and threatens global safety and security, Nick Fury, director of the international peacekeeping agency known as S.H.I.E.L.D., finds himself in need of a team to pull the world back from the brink of disaster.",
+    poster_path: "https://image.tmdb.org/t/p/w500/RYMX2wcKCBAr24UyPD7xwmjaTn.jpg",
     top_cast_popularity: 88.0,
     success: 1
   },
@@ -242,6 +250,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 165,
     original_language: "en",
     overview: "With the help of a German bounty hunter, a freed slave sets out to rescue his wife from a brutal Mississippi plantation owner.",
+    poster_path: "https://image.tmdb.org/t/p/w500/7oWY8vdWW7thTzWh3OKYRkWUlD5.jpg",
     top_cast_popularity: 79.8,
     success: 1
   },
@@ -264,6 +273,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 154,
     original_language: "en",
     overview: "A burger-loving hitman, his philosophical partner, a drug-addled gangster's moll and a washed-up boxer converge in four tales of violence and redemption.",
+    poster_path: "https://image.tmdb.org/t/p/w500/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg",
     top_cast_popularity: 69.4,
     success: 1
   },
@@ -286,6 +296,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 142,
     original_language: "en",
     overview: "Framed in the 1940s for the double murder of his wife and her lover, upstanding banker Andy Dufresne begins a new life at the Shawshank prison.",
+    poster_path: "https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg",
     top_cast_popularity: 61.2,
     success: 1
   },
@@ -308,6 +319,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 139,
     original_language: "en",
     overview: "A ticking-time-bomb insomniac and a slippery soap salesman channel primal male aggression into a shocking new form of therapy.",
+    poster_path: "https://image.tmdb.org/t/p/w500/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
     top_cast_popularity: 76.8,
     success: 1
   },
@@ -330,6 +342,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 142,
     original_language: "en",
     overview: "A man with a low IQ has accomplished great things in his life and been present during significant historic events—in each case, far exceeding what anyone imagined he could do.",
+    poster_path: "https://image.tmdb.org/t/p/w500/arw2VCBveWOVZr6pxd9XTd1TdQa.jpg",
     top_cast_popularity: 84.1,
     success: 1
   },
@@ -352,6 +365,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 120,
     original_language: "en",
     overview: "An apocalyptic story set in the furthest reaches of our planet, in a stark desert landscape where humanity is broken, and almost everyone is crazed fighting for the necessities of life.",
+    poster_path: "https://image.tmdb.org/t/p/w500/hA2ple9q4qnwxp3hKVNhroipsir.jpg",
     top_cast_popularity: 72.1,
     success: 1
   },
@@ -374,6 +388,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 128,
     original_language: "en",
     overview: "Mia, an aspiring actress, serves lattes to movie stars in between auditions and Sebastian, a dedicated jazz musician, plays in dingy bars. As success mounts, they are faced with decisions that fray the fragile fabric of their love affair.",
+    poster_path: "https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkVJb0Rf0.jpg",
     top_cast_popularity: 77.3,
     success: 1
   },
@@ -396,6 +411,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 107,
     original_language: "en",
     overview: "Under the direction of a ruthless instructor, a talented young drummer will stop at nothing to achieve greatness.",
+    poster_path: "https://image.tmdb.org/t/p/w500/7fn624j5lj3xTme2SgiLCeuedmO.jpg",
     top_cast_popularity: 45.1,
     success: 1
   },
@@ -418,6 +434,7 @@ const FEATURED_TMDB_MOVIES: Movie[] = [
     runtime: 104,
     original_language: "en",
     overview: "Chris and his girlfriend Rose have reached the meet-the-parents stage of dating. She invites him for a weekend getaway with her parents, where Chris senses a disturbing secret.",
+    poster_path: "https://image.tmdb.org/t/p/w500/tFXcEccSQMf3lfhfXKSU9iRBpa3.jpg",
     top_cast_popularity: 49.8,
     success: 1
   }
@@ -493,6 +510,45 @@ function buildFullTmdbDataset(): Movie[] {
     const topCastPop = Math.round((15 + rand() * 75) * 10) / 10;
     const runtime = Math.floor(85 + rand() * 85);
 
+    const genrePosters: Record<string, string[]> = {
+      "Action": [
+        "https://image.tmdb.org/t/p/w500/kyeqWdyUXW608qlYkRqosgbbJyK.jpg",
+        "https://image.tmdb.org/t/p/w500/hr0L2aueqlP2BYUblTTjmtn0hw4.jpg",
+        "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
+        "https://image.tmdb.org/t/p/w500/3E53THEQuzB7PbB9M3G2db06iMu.jpg",
+        "https://image.tmdb.org/t/p/w500/hA2ple9q4qnwxp3hKVNhroipsir.jpg"
+      ],
+      "Science Fiction": [
+        "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
+        "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
+        "https://image.tmdb.org/t/p/w500/r2J02Z2OpNTctfOSN2Ydgii51I3.jpg",
+        "https://image.tmdb.org/t/p/w500/RYMX2wcKCBAr24UyPD7xwmjaTn.jpg"
+      ],
+      "Drama": [
+        "https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg",
+        "https://image.tmdb.org/t/p/w500/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+        "https://image.tmdb.org/t/p/w500/arw2VCBveWOVZr6pxd9XTd1TdQa.jpg",
+        "https://image.tmdb.org/t/p/w500/7fn624j5lj3xTme2SgiLCeuedmO.jpg"
+      ],
+      "Comedy": [
+        "https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkVJb0Rf0.jpg",
+        "https://image.tmdb.org/t/p/w500/3E53THEQuzB7PbB9M3G2db06iMu.jpg",
+        "https://image.tmdb.org/t/p/w500/arw2VCBveWOVZr6pxd9XTd1TdQa.jpg"
+      ],
+      "Thriller": [
+        "https://image.tmdb.org/t/p/w500/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg",
+        "https://image.tmdb.org/t/p/w500/7oWY8vdWW7thTzWh3OKYRkWUlD5.jpg",
+        "https://image.tmdb.org/t/p/w500/tFXcEccSQMf3lfhfXKSU9iRBpa3.jpg"
+      ],
+      "Adventure": [
+        "https://image.tmdb.org/t/p/w500/jGWpG4b4dGQFL8MwBhMuW1a72UB.jpg",
+        "https://image.tmdb.org/t/p/w500/1n9D32o30XOHMdMWuIT4AaA5ruI.jpg"
+      ]
+    };
+    const primaryG = selectedGenres[0] || 'Action';
+    const postersForG = genrePosters[primaryG] || genrePosters['Action'];
+    const assignedPoster = postersForG[Math.floor(rand() * postersForG.length)];
+
     dataset.push({
       id: idCounter,
       title,
@@ -512,6 +568,7 @@ function buildFullTmdbDataset(): Movie[] {
       runtime,
       original_language: "en",
       overview: `A compelling ${selectedGenres.join('/')} production focusing on intrigue, human drama, and high-stakes conflict.`,
+      poster_path: assignedPoster,
       top_cast_popularity: topCastPop,
       success: (voteAverage >= 6.5 && voteCount >= 100) ? 1 : 0
     });

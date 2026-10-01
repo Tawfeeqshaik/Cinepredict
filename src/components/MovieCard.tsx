@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Movie } from '../types';
 import { Heart, Star, DollarSign, Clock, Film, Sparkles, TrendingUp } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { MoviePoster } from './media/MoviePoster';
 
 interface MovieCardProps {
   movie: Movie;
@@ -19,7 +21,19 @@ export const MovieCardComponent: React.FC<MovieCardProps> = ({
   matchScore,
   showProducerDetails = false
 }) => {
-  const [imageError, setImageError] = React.useState(false);
+  const [showHeartBurst, setShowHeartBurst] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onToggleLike) {
+      if (!isLiked && !shouldReduceMotion) {
+        setShowHeartBurst(true);
+        setTimeout(() => setShowHeartBurst(false), 900);
+      }
+      onToggleLike(movie.id);
+    }
+  };
 
   const formattedBudget = movie.budget > 0
     ? `$${(movie.budget / 1000000).toFixed(0)}M`
@@ -30,77 +44,67 @@ export const MovieCardComponent: React.FC<MovieCardProps> = ({
     : 'N/A';
 
   return (
-    <div className="group relative bg-[#141414] rounded-2xl border border-[#262626] hover:border-red-600/40 shadow-xl shadow-black/80 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-red-600/10 flex flex-col overflow-hidden">
+    <motion.div
+      whileHover={shouldReduceMotion ? {} : { y: -6, scale: 1.02 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      className="group relative bg-[#141414]/90 backdrop-blur-md rounded-2xl border border-[#262626] hover:border-red-600/50 shadow-xl shadow-black/80 transition-colors flex flex-col overflow-hidden"
+    >
       
       {/* Top Media / Poster Section */}
-      <div className="relative aspect-[16/10] w-full bg-[#0B0B0B] overflow-hidden flex items-center justify-center">
-        {movie.poster_path && !imageError ? (
-          <img
-            src={movie.poster_path}
-            alt={movie.title}
-            loading="lazy"
-            onError={() => setImageError(true)}
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
-          />
-        ) : (
-          /* High-spec styled placeholder when no poster is available */
-          <div className="w-full h-full bg-gradient-to-br from-[#181818] via-[#141414] to-red-950/20 p-4 flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(229,9,20,0.15),transparent_60%)]" />
-            
-            <div className="flex items-center justify-between text-neutral-500 z-10">
-              <div className="p-1.5 rounded-lg bg-red-600/10 border border-red-600/20 text-red-500">
-                <Film className="w-4 h-4" />
-              </div>
-              <span className="text-[10px] font-mono text-neutral-400 bg-[#050505]/80 px-2 py-0.5 rounded-md border border-[#262626]">
-                TMDB #{movie.id}
-              </span>
-            </div>
-
-            <div className="z-10">
-              <p className="text-sm font-bold text-white group-hover:text-red-500 transition-colors line-clamp-2 leading-snug font-display">
-                {movie.title}
-              </p>
-              <p className="text-[11px] text-red-400/90 font-medium mt-1">
-                {movie.genres.slice(0, 2).join(' • ')}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between text-[10px] text-neutral-400 z-10 pt-2 border-t border-[#262626] font-mono">
-              <span>{movie.release_year}</span>
-              <span>{movie.runtime} mins</span>
-            </div>
-          </div>
-        )}
-
-        {/* Overlay Dark Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-transparent to-black/50 pointer-events-none" />
+      <div className="relative w-full overflow-hidden">
+        <MoviePoster
+          posterPath={movie.poster_path}
+          title={movie.title}
+          genres={movie.genres}
+          releaseYear={movie.release_year}
+          aspectRatio="16/10"
+        />
 
         {/* Top Badges */}
-        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10 pointer-events-none">
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10">
           {/* Rating Badge */}
-          <div className="flex items-center gap-1 bg-[#050505]/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-[#262626] text-xs font-semibold text-amber-400 shadow-md">
+          <div className="flex items-center gap-1 bg-[#050505]/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-[#262626] text-xs font-semibold text-amber-400 shadow-md pointer-events-none">
             <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
             <span>{movie.vote_average.toFixed(1)}</span>
             <span className="text-[10px] text-neutral-400 font-normal">({movie.vote_count})</span>
           </div>
 
-          {/* Like Heart Button */}
+          {/* Like Heart Button with Particle Burst */}
           {onToggleLike && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleLike(movie.id);
-              }}
+              onClick={handleLike}
               title={isLiked ? "Unlike movie" : "Like movie & tune taste profile"}
-              className={`pointer-events-auto p-2 rounded-xl backdrop-blur-md border transition-all duration-200 ${
+              className={`relative p-2 rounded-xl backdrop-blur-md border transition-all duration-200 cursor-pointer ${
                 isLiked
                   ? 'bg-[#E50914] text-white border-red-500 shadow-lg shadow-red-600/40 scale-105'
                   : 'bg-[#050505]/80 text-neutral-400 border-[#262626] hover:text-red-400 hover:border-red-500/50 hover:bg-[#181818]'
               }`}
             >
               <Heart className={`w-4 h-4 ${isLiked ? 'fill-white' : ''}`} />
+
+              <AnimatePresence>
+                {showHeartBurst && (
+                  <>
+                    <motion.span
+                      initial={{ scale: 0.5, opacity: 1 }}
+                      animate={{ scale: 2.2, opacity: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.6 }}
+                      className="absolute inset-0 rounded-xl border-2 border-red-500 pointer-events-none"
+                    />
+                    <motion.div
+                      initial={{ scale: 0, opacity: 1 }}
+                      animate={{ scale: 1.4, y: -16, opacity: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.8 }}
+                      className="absolute -top-2 left-1/2 -translate-x-1/2 pointer-events-none text-red-500 text-xs font-bold font-mono"
+                    >
+                      +1
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </button>
           )}
         </div>
@@ -109,7 +113,7 @@ export const MovieCardComponent: React.FC<MovieCardProps> = ({
         {matchScore !== undefined && (
           <div className="absolute bottom-2.5 left-2.5 z-10">
             <span className="flex items-center gap-1 bg-[#E50914] text-white text-[11px] font-bold px-2.5 py-0.5 rounded-md shadow-lg shadow-red-600/30 font-mono">
-              <Sparkles className="w-3 h-3" />
+              <Sparkles className="w-3.5 h-3.5" />
               {matchScore}% Match
             </span>
           </div>
@@ -176,7 +180,7 @@ export const MovieCardComponent: React.FC<MovieCardProps> = ({
 
       </div>
 
-    </div>
+    </motion.div>
   );
 };
 

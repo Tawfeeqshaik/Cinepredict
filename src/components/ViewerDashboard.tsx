@@ -1,6 +1,12 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Movie, UserProfile, ConceptBattle } from '../types';
 import { MovieCard } from './MovieCard';
+import { ReelRow } from './media/ReelRow';
+import { PosterCard } from './media/PosterCard';
+import { AudienceLabViewer } from './audience/AudienceLabViewer';
+import { LiveCinemaHub } from './live/LiveCinemaHub';
+import { Reveal } from './motion/Reveal';
+import { motion } from 'framer-motion';
 import {
   Sparkles,
   Compass,
@@ -278,7 +284,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({
             <div>
               <p className="text-[10px] font-mono font-bold text-red-500 uppercase tracking-widest">Your Taste Vector Profile</p>
               <h3 className="text-base font-extrabold text-white font-display">
-                {tasteProfile.count} Liked Film{tasteProfile.count > 1 ? 's' : ''} Â· Avg Rating {tasteProfile.avgRating.toFixed(1)} â˜…
+                {tasteProfile.count} Liked Film{tasteProfile.count > 1 ? 's' : ''} • Avg Rating {tasteProfile.avgRating.toFixed(1)} ★
               </h3>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {tasteProfile.topGenres.map(g => (
@@ -306,6 +312,16 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({
         </div>
       )}
 
+      {/* AUDIENCE LAB VIEWER VOTING & CONCEPT DECISION SECTION */}
+      <section id="audience-lab-section">
+        <AudienceLabViewer user={user} />
+      </section>
+
+      {/* LIVE CINEMA INTELLIGENCE STREAM */}
+      <section id="live-cinema-section">
+        <LiveCinemaHub user={user} onToggleLike={onToggleLike} />
+      </section>
+
       {/* 1. PRODUCER CONCEPT BATTLE CARD */}
       {battle && (
         <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
@@ -320,7 +336,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({
                   Live Audience Decision Loop
                 </span>
                 <h2 className="text-xl sm:text-2xl font-extrabold text-white font-display">
-                  Producer Concept Battle â€” Which Would You Watch?
+                  Producer Concept Battle — Which Would You Watch?
                 </h2>
               </div>
             </div>
@@ -481,14 +497,14 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({
 
           {/* Battle footnote */}
           <p className="text-center text-[10px] text-neutral-500 font-mono">
-            Blended Score = 60% Ã— ML Historical Probability + 40% Ã— Live Audience Vote Ratio.
-            {totalVotes < 10 && ' Insufficient audience data â€” scores will stabilize as more votes are collected.'}
+            Blended Score = 60% × ML Historical Probability + 40% × Live Audience Vote Ratio.
+            {totalVotes < 10 && ' Insufficient audience data — scores will stabilize as more votes are collected.'}
           </p>
 
         </div>
       )}
 
-      {/* 2. PERSONALIZED FEED ("FOR YOU" â€” TASTE VECTOR ENGINE) */}
+      {/* 2. PERSONALIZED FEED ("FOR YOU" — TASTE VECTOR ENGINE) */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -496,7 +512,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-white tracking-tight font-display">For You â€” Personalized Feed</h2>
+              <h2 className="text-xl font-extrabold text-white tracking-tight font-display">For You — Personalized Feed</h2>
               <p className="text-xs text-neutral-400">Content-based vector alignment matching your liked film profiles</p>
             </div>
           </div>
@@ -668,38 +684,37 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({
         </div>
       </section>
 
-      {/* 5. REGIONAL DISCOVER â€” Cinema By Language */}
+      {/* 5. REGIONAL DISCOVERY — Cinema By Language */}
       {regionalRows.length > 0 && (
         <section id="regional-section" className="space-y-6 pt-6 border-t border-[#262626]">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-red-600/20 text-red-500 border border-red-600/40 flex items-center justify-center">
-              <Film className="w-4 h-4" />
+              <Film className="w-4 h-4 reel-spin" />
             </div>
             <div>
               <h2 className="text-xl font-extrabold text-white tracking-tight font-display">Regional Cinema Discovery</h2>
-              <p className="text-xs text-neutral-400">Explore top-rated titles from world cinema â€” within the available TMDB dataset</p>
+              <p className="text-xs text-neutral-400">Explore top-rated titles from world cinema — within the available TMDB dataset</p>
             </div>
           </div>
 
           <div className="space-y-8">
             {regionalRows.map(row => (
-              <div key={row.code} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-white font-display">{row.label}</span>
-                  <span className="text-[10px] font-mono text-neutral-500 bg-[#141414] border border-[#262626] px-2 py-0.5 rounded-lg">{row.movies.length} titles</span>
-                </div>
-                <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar snap-x snap-mandatory">
-                  {row.movies.map(movie => (
-                    <div key={movie.id} className="snap-start flex-shrink-0 w-44 sm:w-52">
-                      <MovieCard
-                        movie={movie}
-                        isLiked={user.likedMovieIds.includes(movie.id)}
-                        onToggleLike={onToggleLike}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <ReelRow
+                key={row.code}
+                title={row.label}
+                subtitle={`Top-rated ${row.label} cinema selections from the TMDB 5,000 dataset`}
+                badge={`${row.movies.length} TITLES`}
+              >
+                {row.movies.map(movie => (
+                  <div key={movie.id} className="snap-start flex-shrink-0 w-44 sm:w-56">
+                    <PosterCard
+                      movie={movie}
+                      isLiked={user.likedMovieIds.includes(movie.id)}
+                      onToggleLike={onToggleLike}
+                    />
+                  </div>
+                ))}
+              </ReelRow>
             ))}
           </div>
         </section>
@@ -721,7 +736,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({
               </div>
             </div>
             <div className="px-3 py-1.5 bg-[#141414] border border-[#262626] rounded-xl text-[10px] font-mono text-neutral-400">
-              Within available TMDB metadata Â· Accessibility data derived from language availability
+              Within available TMDB metadata • Accessibility data derived from language availability
             </div>
           </div>
 

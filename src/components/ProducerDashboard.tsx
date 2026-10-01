@@ -58,9 +58,17 @@ import {
   X,
   Lock,
   Award,
-  RotateCcw
+  RotateCcw,
+  Activity
 } from 'lucide-react';
 import { ScriptIntelligenceReport } from './ScriptIntelligenceReport';
+import { AudienceLabProducer } from './audience/AudienceLabProducer';
+import { LiveCinemaHub } from './live/LiveCinemaHub';
+import { StrategicOverview } from './producer/StrategicOverview';
+import { ScenarioLab } from './producer/ScenarioLab';
+import { CountUp } from './ui/CountUp';
+import { Reveal } from './motion/Reveal';
+import { motion } from 'framer-motion';
 import {
   apiGetGreenlight,
   apiGetComparables,
@@ -70,14 +78,31 @@ import {
   apiGetCineAccess,
   apiGetPredictionTracker,
   apiGetDataProvenance,
-  apiGetAudienceStats
+  apiGetAudienceStats,
+  apiGetPostRelease,
+  apiGetPredictionHistory,
+  apiSimulateScenarios
 } from '../services/api_client';
+import {
+  getAudienceOpportunityRadar,
+  getRegionalContentRadar,
+  getContentGapDetector,
+  getCineAccessStats,
+  getGreenlightSimulator,
+  getComparableMovies,
+  getPredictionTrackerData,
+  getDataProvenanceStats,
+  getAudienceIntelligenceStats,
+  simulateScenarios
+} from '../services/ml_engine';
 
 interface ProducerDashboardProps {
   movies: Movie[];
   stats: DatasetStats;
   modelA: ModelMetrics;
   modelB: ModelMetrics;
+  tab?: string;
+  onTabChange?: (tab: string) => void;
   onSimulate: (input: ProjectSimulationInput) => Promise<PredictionResult>;
   onSelectAlgorithm: (algo: ModelAlgorithm) => void;
   onCreateConceptBattle?: (conceptA: any, conceptB: any) => Promise<ConceptBattle>;
@@ -88,6 +113,8 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
   stats,
   modelA,
   modelB,
+  tab,
+  onTabChange,
   onSimulate,
   onSelectAlgorithm,
   onCreateConceptBattle
@@ -109,19 +136,74 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
   const [simResult, setSimResult] = useState<PredictionResult | null>(null);
   const [simulating, setSimulating] = useState(false);
 
-  // Active Tab: studio | script | scenarios | comparables | opportunity | regional | postrelease | tracker | risks | audience | history | provenance | audit
-  const [activeTab, setActiveTab] = useState<'studio' | 'script' | 'scenarios' | 'comparables' | 'opportunity' | 'regional' | 'postrelease' | 'tracker' | 'risks' | 'audience' | 'history' | 'provenance' | 'audit'>('studio');
+  // Active Tab: overview | studio | audience | livecinema | script | scenarios | comparables | opportunity | regional | postrelease | tracker | risks | history | provenance | audit
+  const [internalTab, setInternalTab] = useState<string>('overview');
+  const activeTab = tab || internalTab;
+  const setActiveTab = (t: string) => {
+    setInternalTab(t);
+    if (onTabChange) onTabChange(t);
+  };
 
-  // Platform Analytics State
-  const [opportunityData, setOpportunityData] = useState<AudienceOpportunity[]>([]);
-  const [regionalData, setRegionalData] = useState<RegionalContentInsight[]>([]);
-  const [contentGapsData, setContentGapsData] = useState<ContentGapItem[]>([]);
-  const [cineaccessData, setCineaccessData] = useState<CineAccessMetrics | null>(null);
+  const handleOpenWhatIf = (conceptData: { title: string; budget: number; runtime: number; genres: string[]; releaseMonth: number }) => {
+    setSimTitle(conceptData.title);
+    setSimBudget(conceptData.budget);
+    setSimRuntime(conceptData.runtime);
+    setSimGenres(conceptData.genres);
+    setSimMonth(conceptData.releaseMonth);
+    setActiveTab('studio');
+    setTimeout(() => {
+      document.getElementById('predict-simulator-section')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
+  // Platform Analytics State - Initialized synchronously from ML engine to prevent blank cards
+  const [opportunityData, setOpportunityData] = useState<AudienceOpportunity[]>(() => {
+    try { return getAudienceOpportunityRadar(); } catch { return []; }
+  });
+  const [regionalData, setRegionalData] = useState<RegionalContentInsight[]>(() => {
+    try { return getRegionalContentRadar(); } catch { return []; }
+  });
+  const [contentGapsData, setContentGapsData] = useState<ContentGapItem[]>(() => {
+    try { return getContentGapDetector(); } catch { return []; }
+  });
+  const [cineaccessData, setCineaccessData] = useState<CineAccessMetrics | null>(() => {
+    try { return getCineAccessStats(); } catch { return null; }
+  });
   const [selectedPostReleaseId, setSelectedPostReleaseId] = useState<number>(movies[0]?.id || 19995);
   const [postReleaseDiagnostic, setPostReleaseDiagnostic] = useState<PostReleaseDiagnostic | null>(null);
-  const [greenlightScenarios, setGreenlightScenarios] = useState<GreenlightInvestmentScenario[]>([]);
-  const [comparableMovies, setComparableMovies] = useState<ComparableMovieItem[]>([]);
-  const [predictionTrackerData, setPredictionTrackerData] = useState<PredictionTrackerData | null>(null);
+  const [greenlightScenarios, setGreenlightScenarios] = useState<GreenlightInvestmentScenario[]>(() => {
+    try {
+      return getGreenlightSimulator({
+        title: 'Project Horizon',
+        budget: 120000000,
+        runtime: 135,
+        genres: ['Science Fiction', 'Action'],
+        release_month: 7,
+        release_year: 2026,
+        production_company: 'Warner Bros.',
+        top_cast_popularity: 72,
+        modelAlgorithm: 'random_forest'
+      });
+    } catch { return []; }
+  });
+  const [comparableMovies, setComparableMovies] = useState<ComparableMovieItem[]>(() => {
+    try {
+      return getComparableMovies({
+        title: 'Project Horizon',
+        budget: 120000000,
+        runtime: 135,
+        genres: ['Science Fiction', 'Action'],
+        release_month: 7,
+        release_year: 2026,
+        production_company: 'Warner Bros.',
+        top_cast_popularity: 72,
+        modelAlgorithm: 'random_forest'
+      });
+    } catch { return []; }
+  });
+  const [predictionTrackerData, setPredictionTrackerData] = useState<PredictionTrackerData | null>(() => {
+    try { return getPredictionTrackerData('random_forest'); } catch { return null; }
+  });
 
   // What-If Scenario Simulator state
   const [scenarios, setScenarios] = useState<ScenarioInput[]>([
@@ -129,15 +211,41 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
     { id: 'sc_2', name: 'Scenario B: Shift Release to November', budget: 120000000, runtime: 135, genres: ['Science Fiction', 'Action'], release_month: 11, release_year: 2026, top_cast_popularity: 72 },
     { id: 'sc_3', name: 'Scenario C: Elevate Star Power Index', budget: 135000000, runtime: 128, genres: ['Science Fiction', 'Action'], release_month: 11, release_year: 2026, top_cast_popularity: 88 }
   ]);
-  const [scenarioResults, setScenarioResults] = useState<ScenarioResult[]>([]);
+  const [scenarioResults, setScenarioResults] = useState<ScenarioResult[]>(() => {
+    try {
+      return simulateScenarios(
+        {
+          title: 'Project Horizon',
+          budget: 120000000,
+          runtime: 135,
+          genres: ['Science Fiction', 'Action'],
+          release_month: 7,
+          release_year: 2026,
+          production_company: 'Warner Bros.',
+          top_cast_popularity: 72,
+          modelAlgorithm: 'random_forest',
+          decisionThreshold: 0.5
+        },
+        [
+          { id: 'sc_1', name: 'Scenario A: Trim Runtime to 125m', budget: 120000000, runtime: 125, genres: ['Science Fiction', 'Action'], release_month: 7, release_year: 2026, top_cast_popularity: 72 },
+          { id: 'sc_2', name: 'Scenario B: Shift Release to November', budget: 120000000, runtime: 135, genres: ['Science Fiction', 'Action'], release_month: 11, release_year: 2026, top_cast_popularity: 72 },
+          { id: 'sc_3', name: 'Scenario C: Elevate Star Power Index', budget: 135000000, runtime: 128, genres: ['Science Fiction', 'Action'], release_month: 11, release_year: 2026, top_cast_popularity: 88 }
+        ]
+      ).scenarioResults;
+    } catch { return []; }
+  });
   const [runningScenarios, setRunningScenarios] = useState(false);
 
   // Prediction History & Project Comparison state
   const [historyRecords, setHistoryRecords] = useState<SavedPredictionRecord[]>([]);
 
   // Provenance & Audience Intel state
-  const [provenanceData, setProvenanceData] = useState<DataProvenanceStats | null>(null);
-  const [audienceIntel, setAudienceIntel] = useState<AudienceIntelligenceStats | null>(null);
+  const [provenanceData, setProvenanceData] = useState<DataProvenanceStats | null>(() => {
+    try { return getDataProvenanceStats(); } catch { return null; }
+  });
+  const [audienceIntel, setAudienceIntel] = useState<AudienceIntelligenceStats | null>(() => {
+    try { return getAudienceIntelligenceStats(); } catch { return null; }
+  });
 
   // Concept battle creator modal/inputs
   const [conceptATitle, setConceptATitle] = useState('Aethelgard: Dragon Oath');
@@ -350,9 +458,8 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
       });
       setSimResult(res);
 
-      fetch('/api/predictions/history')
-        .then(r => r.json())
-        .then(d => setHistoryRecords(d.history || []))
+      apiGetPredictionHistory()
+        .then(d => setHistoryRecords(d || []))
         .catch(() => {});
     } finally {
       setSimulating(false);
@@ -376,13 +483,8 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
         decisionThreshold
       };
 
-      const res = await fetch('/api/scenarios/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ baselineInput, scenarios })
-      });
-      const data = await res.json();
-      setScenarioResults(data.scenarioResults || []);
+      const results = await apiSimulateScenarios(baselineInput, scenarios);
+      setScenarioResults(results || []);
     } catch (err) {
       console.error('Failed to run scenario simulator:', err);
     } finally {
@@ -452,9 +554,8 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
     let isMounted = true;
     if (!selectedPostReleaseId) return;
 
-    fetch(`/api/post-release-diagnostic/${selectedPostReleaseId}`)
-      .then(r => r.json())
-      .then(d => { if (isMounted && !d.error) setPostReleaseDiagnostic(d); })
+    apiGetPostRelease(selectedPostReleaseId)
+      .then(d => { if (isMounted && d) setPostReleaseDiagnostic(d); })
       .catch(() => {});
 
     return () => { isMounted = false; };
@@ -500,67 +601,33 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
     success: m.success === 1 ? 'Hit' : 'Flop'
   }));
 
+  // Auto-scroll to top when active tab switches
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const mainEl = document.querySelector('main');
+    if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
+
   return (
-    <div className="space-y-8 font-sans selection:bg-[#E50914] selection:text-white pb-12">
+    <div className="space-y-6 font-sans selection:bg-[#E50914] selection:text-white pb-12">
       
-      {/* 1. STRATEGIC OVERVIEW METRICS STRIP */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Metric 1 */}
-        <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 shadow-xl shadow-black/80 hover:border-red-600/30 transition-all">
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider">Primary Dataset Size</span>
-            <Database className="w-4 h-4 text-red-500" />
-          </div>
-          <p className="text-3xl sm:text-4xl font-extrabold text-white mt-2 font-display">
-            {stats.cleanedRows.toLocaleString()} <span className="text-xs text-neutral-400 font-mono font-normal">Records</span>
-          </p>
-          <p className="text-[11px] text-neutral-400 mt-1">TMDB 5000 Cleaned Pipeline</p>
-        </div>
-
-        {/* Metric 2 */}
-        <div className="bg-[#141414] border border-red-600/30 rounded-2xl p-5 shadow-xl shadow-black/80 hover:border-red-600 transition-all">
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider">Model A (Pre-Release ROC-AUC)</span>
-            <Lock className="w-4 h-4 text-red-500" />
-          </div>
-          <p className="text-3xl sm:text-4xl font-extrabold text-white mt-2 font-display">
-            {modelA.temporalRocAuc ? modelA.temporalRocAuc.toFixed(2) : modelA.rocAuc.toFixed(2)}
-          </p>
-          <p className="text-[11px] text-red-400 mt-1 font-mono">Out-of-Time Walk-Forward CV</p>
-        </div>
-
-        {/* Metric 3 */}
-        <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 shadow-xl shadow-black/80 hover:border-red-600/30 transition-all">
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider">Model B (Engagement-Aware)</span>
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-          </div>
-          <p className="text-3xl sm:text-4xl font-extrabold text-white mt-2 font-display">
-            {(modelB.cvMeanAccuracy * 100).toFixed(1)}%
-          </p>
-          <p className="text-[11px] text-amber-400/80 mt-1">Includes post-release vote counts</p>
-        </div>
-
-        {/* Metric 4 */}
-        <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 shadow-xl shadow-black/80 hover:border-red-600/30 transition-all">
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider">Historical Success Rate</span>
-            <TrendingUp className="w-4 h-4 text-red-500" />
-          </div>
-          <p className="text-3xl sm:text-4xl font-extrabold text-white mt-2 font-display">
-            {(stats.successRate * 100).toFixed(1)}%
-          </p>
-          <p className="text-[11px] text-neutral-400 mt-1">Target: Rating &ge; 6.5 & Votes &ge; 100</p>
-        </div>
-
-      </div>
-
-      {/* 2. NAVIGATION SUB-TABS */}
+      {/* 1. NAVIGATION SUB-TABS */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-[#262626] no-scrollbar">
         <button
+          onClick={() => setActiveTab('overview')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'overview'
+              ? 'bg-[#E50914] text-white shadow-lg shadow-red-600/30'
+              : 'bg-[#141414] text-neutral-400 hover:text-white border border-[#262626]'
+          }`}
+        >
+          <Clapperboard className="w-3.5 h-3.5" />
+          <span>Strategic Overview</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('studio')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'studio'
               ? 'bg-[#E50914] text-white shadow-lg shadow-red-600/30'
               : 'bg-[#141414] text-neutral-400 hover:text-white border border-[#262626]'
@@ -571,8 +638,32 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('audience')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'audience'
+              ? 'bg-[#E50914] text-white shadow-lg shadow-red-600/30'
+              : 'bg-[#141414] text-neutral-400 hover:text-white border border-[#262626]'
+          }`}
+        >
+          <Vote className="w-3.5 h-3.5 text-red-500" />
+          <span>Audience Lab & Feedback</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('livecinema')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'livecinema'
+              ? 'bg-[#E50914] text-white shadow-lg shadow-red-600/30'
+              : 'bg-[#141414] text-neutral-400 hover:text-white border border-[#262626]'
+          }`}
+        >
+          <Activity className="w-3.5 h-3.5 text-red-500" />
+          <span>Live Market & Cinema</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('script')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'script'
               ? 'bg-[#E50914] text-white shadow-lg shadow-red-600/30'
               : 'bg-[#141414] text-neutral-400 hover:text-white border border-[#262626]'
@@ -667,18 +758,6 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('audience')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === 'audience'
-              ? 'bg-[#E50914] text-white shadow-lg shadow-red-600/30'
-              : 'bg-[#141414] text-neutral-400 hover:text-white border border-[#262626]'
-          }`}
-        >
-          <Users className="w-3.5 h-3.5" />
-          <span>Audience Validation</span>
-        </button>
-
-        <button
           onClick={() => setActiveTab('history')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'history'
@@ -714,6 +793,27 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
           <span>Data Provenance</span>
         </button>
       </div>
+
+      {/* TAB CONTENT: STRATEGIC OVERVIEW COMMAND CENTER */}
+      {activeTab === 'overview' && (
+        <StrategicOverview
+          stats={stats}
+          modelA={modelA}
+          modelB={modelB}
+          simResult={simResult}
+          onNavigateTab={setActiveTab}
+        />
+      )}
+
+      {/* TAB CONTENT: AUDIENCE LAB & PRODUCER FEEDBACK CENTER */}
+      {activeTab === 'audience' && (
+        <AudienceLabProducer onOpenWhatIf={handleOpenWhatIf} />
+      )}
+
+      {/* TAB CONTENT: LIVE CINEMA & MARKET SIGNALS */}
+      {activeTab === 'livecinema' && (
+        <LiveCinemaHub user={null} />
+      )}
 
       {/* TAB CONTENT 1: PREDICTIVE STUDIO */}
       {activeTab === 'studio' && (
@@ -1726,92 +1826,30 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
 
       {/* TAB CONTENT 2: WHAT-IF SCENARIO LAB */}
       {activeTab === 'scenarios' && (
-        <div className="space-y-6">
-          <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
-            
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#262626]">
-              <div>
-                <span className="text-xs font-mono font-bold text-red-500 uppercase tracking-widest">Explainable Simulation</span>
-                <h3 className="text-2xl font-extrabold text-white mt-1 font-display">What-If Scenario Lab</h3>
-                <p className="text-xs text-neutral-400 mt-1">Test alternative project configurations against the trained ML model</p>
-              </div>
-
-              <button
-                onClick={handleRunScenarios}
-                disabled={runningScenarios}
-                className="px-4 py-2 bg-[#E50914] hover:bg-[#B20710] text-white rounded-xl text-xs font-bold shadow-lg shadow-red-600/30 transition-all flex items-center gap-2"
-              >
-                <GitCompare className="w-4 h-4" />
-                <span>{runningScenarios ? 'Running Scenarios...' : 'Evaluate All Scenarios'}</span>
-              </button>
-            </div>
-
-            {/* Scenario Comparison Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-neutral-300 font-sans">
-                <thead>
-                  <tr className="border-b border-[#262626] text-neutral-400 font-mono uppercase text-[10px]">
-                    <th className="py-3 px-4">Scenario Name</th>
-                    <th className="py-3 px-4">Key Variables</th>
-                    <th className="py-3 px-4 text-center">Probability</th>
-                    <th className="py-3 px-4 text-center">Delta (&Delta;)</th>
-                    <th className="py-3 px-4">Why Did It Improve?</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#262626]">
-                  
-                  {/* Baseline row */}
-                  <tr className="bg-[#050505]">
-                    <td className="py-3.5 px-4 font-bold text-white font-display">
-                      Baseline Project ({simTitle})
-                    </td>
-                    <td className="py-3.5 px-4 text-neutral-400 font-mono text-[11px]">
-                      ${(simBudget/1e6).toFixed(0)}M • {simRuntime}m • Month {simMonth}
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono font-bold text-white text-sm">
-                      {simResult ? `${(simResult.successProbability * 100).toFixed(0)}%` : '67%'}
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-neutral-500">
-                      0.0%
-                    </td>
-                    <td className="py-3.5 px-4 text-neutral-400 italic text-[11px]">
-                      Reference Baseline
-                    </td>
-                  </tr>
-
-                  {/* Dynamic Scenarios */}
-                  {scenarioResults.map((sr, i) => (
-                    <tr key={i} className="hover:bg-[#181818] transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-white font-display">
-                        {sr.scenario.name}
-                      </td>
-                      <td className="py-3.5 px-4 text-neutral-300 font-mono text-[11px]">
-                        {sr.keyChangedVariables.join(' | ')}
-                      </td>
-                      <td className="py-3.5 px-4 text-center font-mono font-bold text-white text-sm">
-                        {(sr.prediction.successProbability * 100).toFixed(0)}%
-                      </td>
-                      <td className="py-3.5 px-4 text-center font-mono font-bold">
-                        <span className={`px-2 py-0.5 rounded text-[11px] ${
-                          sr.deltaProbability > 0
-                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                            : 'bg-rose-950 text-rose-400 border border-rose-800'
-                        }`}>
-                          {sr.deltaProbability > 0 ? `+${sr.deltaProbability}%` : `${sr.deltaProbability}%`}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-neutral-300 text-[11px] leading-relaxed">
-                        {sr.whyImproved}
-                      </td>
-                    </tr>
-                  ))}
-
-                </tbody>
-              </table>
-            </div>
-
-          </div>
-        </div>
+        <ScenarioLab
+          baselineInput={{
+            title: simTitle,
+            budget: simBudget,
+            runtime: simRuntime,
+            genres: simGenres,
+            release_month: simMonth,
+            release_year: simYear,
+            production_company: simStudio,
+            top_cast_popularity: simCastPop,
+            modelAlgorithm: selectedAlgorithm,
+            decisionThreshold
+          }}
+          baselineResult={simResult}
+          onSimulate={onSimulate}
+          onApplyScenarioToStudio={(sc) => {
+            setSimBudget(sc.budget);
+            setSimRuntime(sc.runtime);
+            setSimGenres(sc.genres);
+            setSimMonth(sc.release_month);
+            setSimCastPop(sc.top_cast_popularity);
+            setActiveTab('studio');
+          }}
+        />
       )}
 
       {/* TAB CONTENT 3: FAILURE RISK ANALYSIS */}
@@ -1860,116 +1898,7 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
         </div>
       )}
 
-      {/* TAB CONTENT: GREENLIGHT & WHAT-IF SCENARIOS */}
-      {activeTab === 'scenarios' && (
-        <div className="space-y-8">
-          
-          {/* Greenlight Investment Simulator */}
-          <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
-            <div className="flex items-center gap-3 pb-6 border-b border-[#262626]">
-              <div className="w-10 h-10 rounded-2xl bg-red-600/20 border border-red-600/40 text-red-500 flex items-center justify-center">
-                <Calculator className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-xs font-mono font-bold text-red-500 uppercase tracking-widest">Capital Investment Evaluation</span>
-                <h3 className="text-2xl font-extrabold text-white mt-1 font-display">Greenlight Investment Simulator</h3>
-              </div>
-            </div>
 
-            <p className="text-xs text-neutral-400">
-              Compare commercial performance expectations across 3 capital allocation packages for <strong>{simTitle}</strong> based on historical TMDB priors.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {greenlightScenarios.map((gs, idx) => (
-                <div key={idx} className="p-6 rounded-2xl bg-[#050505] border border-[#262626] hover:border-red-600/40 transition-all flex flex-col justify-between space-y-4">
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-mono font-bold text-red-500 uppercase tracking-wider">{gs.tier}</span>
-                    <h4 className="text-2xl font-extrabold text-white font-display">${(gs.budget / 1000000).toFixed(0)}M Budget</h4>
-                    
-                    <div className="pt-2 flex items-center justify-between text-xs">
-                      <span className="text-neutral-400">Predicted Prob:</span>
-                      <span className="font-extrabold text-white font-mono text-base">{(gs.predictedSuccessProbability * 100).toFixed(0)}%</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-neutral-400">Risk Profile:</span>
-                      <span className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] ${
-                        gs.riskLevel === 'Low' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
-                        gs.riskLevel === 'Moderate' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
-                        'bg-rose-950 text-rose-400 border border-rose-800'
-                      }`}>
-                        {gs.riskLevel} Risk
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-[#262626] space-y-2 text-xs">
-                    <p className="text-neutral-400 font-mono text-[11px]">
-                      <strong className="text-white font-bold">{gs.comparableHitsCount}</strong> comparable hit titles in dataset
-                    </p>
-                    <p className="text-neutral-300 text-[11px] leading-relaxed">
-                      {gs.roiPotentialNote}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* What-If Scenario Simulator Lab */}
-          <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
-            <div className="flex items-center justify-between pb-6 border-b border-[#262626]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-red-600/20 border border-red-600/40 text-red-500 flex items-center justify-center">
-                  <GitCompare className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-xs font-mono font-bold text-red-500 uppercase tracking-widest">Variable Optimization</span>
-                  <h3 className="text-2xl font-extrabold text-white mt-1 font-display">What-If Scenario Lab</h3>
-                </div>
-              </div>
-
-              <button
-                onClick={handleRunScenarios}
-                disabled={runningScenarios}
-                className="px-5 py-2.5 bg-[#E50914] hover:bg-[#B20710] text-white rounded-xl text-xs font-bold shadow-md transition-all"
-              >
-                {runningScenarios ? 'Simulating...' : 'Run Scenario Batch'}
-              </button>
-            </div>
-
-            {scenarioResults.length > 0 ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {scenarioResults.map((sr, idx) => (
-                    <div key={idx} className="p-5 rounded-2xl bg-[#050505] border border-[#262626] space-y-3">
-                      <div className="flex justify-between items-start">
-                        <span className="font-bold text-sm text-white font-display">{sr.scenario.name}</span>
-                        <span className={`font-mono text-xs font-bold ${sr.deltaProbability >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {sr.deltaProbability >= 0 ? `+${sr.deltaProbability}%` : `${sr.deltaProbability}%`}
-                        </span>
-                      </div>
-                      <div className="text-xs text-neutral-400 space-y-1 font-mono">
-                        <p>Budget: ${(sr.scenario.budget / 1000000).toFixed(0)}M | Runtime: {sr.scenario.runtime}m</p>
-                        <p>Release Month: {sr.scenario.release_month} | Cast Pop: {sr.scenario.top_cast_popularity}</p>
-                      </div>
-                      <p className="text-xs text-neutral-300 pt-2 border-t border-[#262626] leading-relaxed">
-                        {sr.whyImproved}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="p-8 text-center text-xs font-mono text-neutral-400 bg-[#050505] rounded-2xl border border-[#262626]">
-                Click "Run Scenario Batch" to evaluate sensitivity across runtime, release timing, and cast star power.
-              </div>
-            )}
-          </div>
-
-        </div>
-      )}
 
       {/* TAB CONTENT: COMPARABLE MOVIES */}
       {activeTab === 'comparables' && (
@@ -2370,8 +2299,8 @@ export const ProducerDashboard: React.FC<ProducerDashboardProps> = ({
         </div>
       )}
 
-      {/* TAB CONTENT 4: AUDIENCE INTELLIGENCE */}
-      {activeTab === 'audience' && (
+      {/* TAB CONTENT: AUDIENCE INTELLIGENCE LEGACY */}
+      {activeTab === 'audience_intel' && (
         <div className="space-y-6">
           <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
             

@@ -4,8 +4,11 @@ import {
   Film, Lock, User, Clapperboard, Eye, ArrowRight, Sparkles, 
   Video, Ticket, Star, Flame, TrendingUp, Award, DollarSign
 } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 import { apiLogin } from '../services/api_client';
+import { CinemaBackground } from './background/CinemaBackground';
+import { Reveal } from './motion/Reveal';
 
 interface LoginPageProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -55,6 +58,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   // Active showcase movie selector
   const [selectedMovieIndex, setSelectedMovieIndex] = useState(0);
+  const shouldReduceMotion = useReducedMotion();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,17 +83,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleQuickDemo = (demoRole: UserRole) => {
-    if (demoRole === 'producer') {
-      setUsername('producer_demo');
-      setPassword('demo123');
-      setRole('producer');
-      setActiveTab('login');
-    } else {
-      setUsername('viewer_demo');
-      setPassword('demo123');
-      setRole('viewer');
-      setActiveTab('login');
+  const handleQuickDemo = async (demoRole: UserRole) => {
+    const u = demoRole === 'producer' ? 'producer_demo' : 'viewer_demo';
+    const p = 'demo123';
+    setUsername(u);
+    setPassword(p);
+    setRole(demoRole);
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      const { user } = await apiLogin(u, p, demoRole);
+      if (user) {
+        onLoginSuccess(user);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Quick login failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -98,124 +108,167 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   return (
     <div className="min-h-screen w-full bg-[#050505] text-white flex flex-col justify-between relative overflow-x-hidden font-sans selection:bg-[#E50914] selection:text-white">
       
-      {/* Top Film Strip Border */}
-      <div className="w-full bg-[#0B0B0B] border-b border-[#262626] py-1.5 px-2 flex justify-between items-center opacity-80 z-20 overflow-hidden">
-        <div className="flex gap-2 sm:gap-4 animate-pulse">
+      {/* 1. CINEMATIC FULL-BLEED BACKGROUND (POSTER WALL MARQUEE + BLOOMS + GRAIN) */}
+      <CinemaBackground variant="hero" />
+
+      {/* 2. TOP FILM SPROCKET STRIP */}
+      <div className="w-full bg-[#0B0B0B]/80 backdrop-blur-md border-b border-[#262626] py-1.5 px-3 flex justify-between items-center z-20 overflow-hidden">
+        <div className="flex gap-2 sm:gap-4 opacity-40">
           {Array.from({ length: 24 }).map((_, i) => (
             <div key={i} className="w-3.5 h-2 bg-red-600/30 rounded-[2px] border border-red-500/40" />
           ))}
         </div>
         <div className="hidden md:flex items-center gap-2 text-[10px] font-mono text-red-500 tracking-widest uppercase">
-          <Film className="w-3.5 h-3.5 text-red-500 animate-spin" style={{ animationDuration: '10s' }} />
+          <Film className="w-3.5 h-3.5 text-red-500 reel-spin" />
           <span>35MM CINEMATIC TMDB DATA STREAM • REEL #4803</span>
         </div>
-        <div className="flex gap-2 sm:gap-4 animate-pulse">
+        <div className="flex gap-2 sm:gap-4 opacity-40">
           {Array.from({ length: 24 }).map((_, i) => (
             <div key={i} className="w-3.5 h-2 bg-red-600/30 rounded-[2px] border border-red-500/40" />
           ))}
         </div>
       </div>
 
-      {/* Background Ambient Glows */}
-      <div className="absolute top-0 left-1/4 w-[700px] h-[700px] bg-red-600/10 rounded-full blur-[160px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-red-900/10 rounded-full blur-[150px] pointer-events-none" />
-
-      {/* Main Content Container */}
+      {/* 3. MAIN INTERACTIVE CONTENT */}
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row items-center justify-center gap-12 relative z-10">
         
         {/* Left Column Showcase */}
         <div className="w-full lg:w-1/2 space-y-8 text-left">
           
-          <div className="space-y-4">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1] font-display">
-              Predict Box Office <br />
-              <span className="text-[#E50914]">
-                Before The First Cut.
-              </span>
-            </h1>
-
-            <p className="text-sm sm:text-base text-neutral-300 max-w-xl leading-relaxed">
-              Powered by 4,800+ TMDB film datasets, dual machine learning models, 5-fold cross-validation, SHAP explainability, and live audience decision loops.
-            </p>
-          </div>
-
-          {/* Interactive Movie Showcase Card */}
-          <div className="relative bg-[#141414] border border-[#262626] rounded-3xl p-6 shadow-2xl overflow-hidden group">
-            
-            <div 
-              className="absolute inset-0 bg-cover bg-center opacity-25 group-hover:scale-105 transition-transform duration-700 pointer-events-none"
-              style={{ backgroundImage: `url(${activeShowcase.image})` }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent pointer-events-none" />
-
-            <div className="relative z-10 flex items-center justify-between pb-4 border-b border-[#262626]">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 bg-[#E50914] rounded-2xl p-0.5 shadow-lg shadow-red-600/30 flex items-center justify-center text-white">
-                  <Film className="w-6 h-6 animate-spin" style={{ animationDuration: '12s' }} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2 font-display">
-                    <span>{activeShowcase.title}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-950 text-red-400 border border-red-800">
-                      {activeShowcase.year}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-neutral-400 font-mono">{activeShowcase.genre}</p>
-                </div>
+          <Reveal direction="up" delay={0.1}>
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-600/10 border border-red-600/30 text-red-500 text-xs font-mono font-bold uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                <span>Next-Gen Entertainment Intelligence</span>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                {FEATURED_SHOWCASE_MOVIES.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedMovieIndex(idx)}
-                    className={`w-2.5 h-2.5 rounded-full transition-all ${
-                      selectedMovieIndex === idx
-                        ? 'bg-[#E50914] w-6'
-                        : 'bg-neutral-700 hover:bg-neutral-500'
-                    }`}
-                  />
-                ))}
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1] font-display">
+                Predict Box Office <br />
+                <span className="text-[#E50914] drop-shadow-[0_0_25px_rgba(229,9,20,0.4)]">
+                  Before The First Cut.
+                </span>
+              </h1>
+
+              <p className="text-sm sm:text-base text-neutral-300 max-w-xl leading-relaxed">
+                Powered by 4,800+ TMDB film datasets, dual machine learning models, 5-fold cross-validation, SHAP explainability, and live audience decision loops.
+              </p>
+
+              {/* Instant 1-Click Launch Buttons */}
+              <div className="flex flex-wrap gap-3 pt-1">
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => handleQuickDemo('producer')}
+                  className="px-5 py-3 bg-[#E50914] hover:bg-[#B20710] text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-xl shadow-red-600/30 flex items-center gap-2 cursor-pointer"
+                >
+                  <Clapperboard className="w-4 h-4" />
+                  <span>Launch Producer Suite</span>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => handleQuickDemo('viewer')}
+                  className="px-5 py-3 bg-[#141414] hover:bg-[#202020] text-white border border-[#262626] font-bold text-xs sm:text-sm rounded-2xl shadow-lg flex items-center gap-2 cursor-pointer"
+                >
+                  <Eye className="w-4 h-4 text-red-500" />
+                  <span>Explore Viewer Feed</span>
+                </motion.button>
               </div>
             </div>
+          </Reveal>
 
-            <div className="relative z-10 grid grid-cols-3 gap-3 pt-4 text-center">
-              <div className="p-3 bg-[#050505] border border-[#262626] rounded-2xl">
-                <p className="text-[10px] text-neutral-400 font-mono flex items-center justify-center gap-1">
-                  <DollarSign className="w-3 h-3 text-red-500" /> REVENUE
-                </p>
-                <p className="text-sm font-extrabold text-white mt-1 font-display">{activeShowcase.revenue}</p>
+          {/* Interactive Movie Showcase Card with Motion */}
+          <Reveal direction="up" delay={0.25}>
+            <motion.div
+              whileHover={shouldReduceMotion ? {} : { y: -4, scale: 1.01 }}
+              transition={{ duration: 0.3 }}
+              className="relative bg-[#141414]/90 backdrop-blur-xl border border-[#262626] hover:border-red-600/40 rounded-3xl p-6 shadow-2xl overflow-hidden group transition-colors"
+            >
+              <div 
+                className="absolute inset-0 bg-cover bg-center opacity-20 group-hover:opacity-30 group-hover:scale-105 transition-all duration-700 pointer-events-none"
+                style={{ backgroundImage: `url(${activeShowcase.image})` }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent pointer-events-none" />
+
+              <div className="relative z-10 flex items-center justify-between pb-4 border-b border-[#262626]">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 bg-[#E50914] rounded-2xl p-0.5 shadow-lg shadow-red-600/30 flex items-center justify-center text-white">
+                    <Film className="w-6 h-6 reel-spin" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2 font-display">
+                      <span>{activeShowcase.title}</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-950 text-red-400 border border-red-800">
+                        {activeShowcase.year}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-neutral-400 font-mono">{activeShowcase.genre}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {FEATURED_SHOWCASE_MOVIES.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedMovieIndex(idx)}
+                      className={`h-2.5 rounded-full transition-all duration-300 ${
+                        selectedMovieIndex === idx
+                          ? 'bg-[#E50914] w-7'
+                          : 'bg-neutral-700 hover:bg-neutral-500 w-2.5'
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
 
-              <div className="p-3 bg-[#050505] border border-[#262626] rounded-2xl">
-                <p className="text-[10px] text-neutral-400 font-mono flex items-center justify-center gap-1">
-                  <TrendingUp className="w-3 h-3 text-red-500" /> MULTIPLIER
-                </p>
-                <p className="text-sm font-extrabold text-white mt-1 font-display">{activeShowcase.roi}</p>
+              <div className="relative z-10 grid grid-cols-3 gap-3 pt-4 text-center">
+                <div className="p-3 bg-[#050505]/80 border border-[#262626] rounded-2xl">
+                  <p className="text-[10px] text-neutral-400 font-mono flex items-center justify-center gap-1">
+                    <DollarSign className="w-3 h-3 text-red-500" /> REVENUE
+                  </p>
+                  <p className="text-sm font-extrabold text-white mt-1 font-display">{activeShowcase.revenue}</p>
+                </div>
+
+                <div className="p-3 bg-[#050505]/80 border border-[#262626] rounded-2xl">
+                  <p className="text-[10px] text-neutral-400 font-mono flex items-center justify-center gap-1">
+                    <TrendingUp className="w-3 h-3 text-red-500" /> MULTIPLIER
+                  </p>
+                  <p className="text-sm font-extrabold text-white mt-1 font-display">{activeShowcase.roi}</p>
+                </div>
+
+                <div className="p-3 bg-[#050505]/80 border border-[#262626] rounded-2xl">
+                  <p className="text-[10px] text-neutral-400 font-mono flex items-center justify-center gap-1">
+                    <Flame className="w-3 h-3 text-red-500" /> MATCH
+                  </p>
+                  <p className="text-sm font-extrabold text-red-400 mt-1 font-display">{activeShowcase.predicted}</p>
+                </div>
               </div>
 
-              <div className="p-3 bg-[#050505] border border-[#262626] rounded-2xl">
-                <p className="text-[10px] text-neutral-400 font-mono flex items-center justify-center gap-1">
-                  <Flame className="w-3 h-3 text-red-500" /> MATCH
-                </p>
-                <p className="text-sm font-extrabold text-red-400 mt-1 font-display">{activeShowcase.predicted}</p>
-              </div>
-            </div>
-
-          </div>
+            </motion.div>
+          </Reveal>
 
         </div>
 
-        {/* Right Column Auth Card */}
+        {/* Right Column Auth Card with Cinematic Float & Reveal */}
         <div className="w-full lg:w-[440px] relative">
           
-          <div className="relative bg-[#141414] border border-[#262626] rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <motion.div
+            initial={shouldReduceMotion ? {} : { opacity: 0, y: 28, scale: 0.98 }}
+            animate={shouldReduceMotion ? {} : { opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="relative bg-[#141414]/90 backdrop-blur-2xl border border-[#262626] hover:border-neutral-700 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/90 transition-all"
+          >
             
+            {/* Card Brand Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-[#E50914] flex items-center justify-center text-white shadow-lg shadow-red-600/30">
+                <motion.div
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.08, rotate: 5 }}
+                  className="w-12 h-12 rounded-2xl bg-[#E50914] flex items-center justify-center text-white shadow-lg shadow-red-600/30"
+                >
                   <Video className="w-6 h-6" />
-                </div>
+                </motion.div>
                 <div>
                   <h2 className="text-xl font-extrabold text-white tracking-tight flex items-center gap-1 font-display">
                     <span>CINE</span>
@@ -228,34 +281,45 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
 
-            {/* Tabs Selector */}
-            <div className="grid grid-cols-2 bg-[#050505] p-1.5 rounded-2xl border border-[#262626] mb-6">
+            {/* Animated Tab Switcher */}
+            <div className="grid grid-cols-2 bg-[#050505] p-1.5 rounded-2xl border border-[#262626] mb-6 relative">
               <button
                 type="button"
                 onClick={() => {
                   setActiveTab('login');
                   setErrorMsg(null);
                 }}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                  activeTab === 'login'
-                    ? 'bg-[#E50914] text-white shadow-md'
-                    : 'text-neutral-400 hover:text-white'
+                className={`relative py-2 text-xs font-bold rounded-xl transition-all z-10 cursor-pointer ${
+                  activeTab === 'login' ? 'text-white' : 'text-neutral-400 hover:text-white'
                 }`}
               >
+                {activeTab === 'login' && (
+                  <motion.div
+                    layoutId="active-auth-tab"
+                    className="absolute inset-0 bg-[#E50914] rounded-xl shadow-md -z-10"
+                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                  />
+                )}
                 Sign In
               </button>
+
               <button
                 type="button"
                 onClick={() => {
                   setActiveTab('signup');
                   setErrorMsg(null);
                 }}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                  activeTab === 'signup'
-                    ? 'bg-[#E50914] text-white shadow-md'
-                    : 'text-neutral-400 hover:text-white'
+                className={`relative py-2 text-xs font-bold rounded-xl transition-all z-10 cursor-pointer ${
+                  activeTab === 'signup' ? 'text-white' : 'text-neutral-400 hover:text-white'
                 }`}
               >
+                {activeTab === 'signup' && (
+                  <motion.div
+                    layoutId="active-auth-tab"
+                    className="absolute inset-0 bg-[#E50914] rounded-xl shadow-md -z-10"
+                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                  />
+                )}
                 Create Account
               </button>
             </div>
@@ -277,7 +341,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="e.g. producer_demo"
                     required
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#050505] border border-[#262626] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-red-600 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#050505] border border-[#262626] focus:border-red-600 rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none transition-all shadow-inner"
                   />
                 </div>
               </div>
@@ -296,45 +360,57 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#050505] border border-[#262626] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-red-600 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#050505] border border-[#262626] focus:border-red-600 rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none transition-all shadow-inner"
                   />
                 </div>
               </div>
 
-              {activeTab === 'signup' && (
-                <div>
-                  <label className="block text-[11px] font-mono text-neutral-400 uppercase tracking-wider mb-1.5">
-                    Studio Experience Role
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRole('producer')}
-                      className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs transition-all ${
-                        role === 'producer'
-                          ? 'bg-[#E50914] border-red-500 text-white font-bold shadow-lg'
-                          : 'bg-[#050505] border-[#262626] text-neutral-400'
-                      }`}
-                    >
-                      <Clapperboard className="w-4 h-4" />
-                      <span>Producer Suite</span>
-                    </button>
+              {/* Role Selection on Signup with 3D Tilt Glow */}
+              <AnimatePresence>
+                {activeTab === 'signup' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <label className="block text-[11px] font-mono text-neutral-400 uppercase tracking-wider mb-1.5">
+                      Studio Experience Role
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <motion.button
+                        type="button"
+                        whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                        whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                        onClick={() => setRole('producer')}
+                        className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                          role === 'producer'
+                            ? 'bg-[#E50914] border-red-500 text-white font-bold shadow-lg shadow-red-600/30'
+                            : 'bg-[#050505] border-[#262626] text-neutral-400 hover:border-neutral-700'
+                        }`}
+                      >
+                        <Clapperboard className="w-4 h-4" />
+                        <span>Producer Suite</span>
+                      </motion.button>
 
-                    <button
-                      type="button"
-                      onClick={() => setRole('viewer')}
-                      className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs transition-all ${
-                        role === 'viewer'
-                          ? 'bg-[#E50914] border-red-500 text-white font-bold shadow-lg'
-                          : 'bg-[#050505] border-[#262626] text-neutral-400'
-                      }`}
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span>Viewer Feed</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+                      <motion.button
+                        type="button"
+                        whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                        whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                        onClick={() => setRole('viewer')}
+                        className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                          role === 'viewer'
+                            ? 'bg-[#E50914] border-red-500 text-white font-bold shadow-lg shadow-red-600/30'
+                            : 'bg-[#050505] border-[#262626] text-neutral-400 hover:border-neutral-700'
+                        }`}
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>Viewer Feed</span>
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {errorMsg && (
                 <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs font-medium">
@@ -342,23 +418,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 </div>
               )}
 
-              <button
+              <motion.button
                 type="submit"
                 disabled={loading}
+                whileHover={shouldReduceMotion ? {} : { scale: 1.015 }}
+                whileTap={shouldReduceMotion ? {} : { scale: 0.985 }}
                 className="w-full py-3 px-4 rounded-xl bg-[#E50914] hover:bg-[#B20710] text-white font-extrabold text-sm shadow-xl shadow-red-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {loading ? (
-                  <span>Accessing Studio...</span>
+                  <span className="flex items-center gap-2">
+                    <Film className="w-4 h-4 reel-spin-fast" />
+                    <span>Accessing Studio...</span>
+                  </span>
                 ) : (
                   <>
                     <span>{activeTab === 'signup' ? 'Create Studio Account' : 'Enter Studio Dashboard'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
-              </button>
+              </motion.button>
             </form>
 
-            {/* Instant Demo Presets */}
+            {/* Instant Demo Presets with Hover Motion */}
             <div className="mt-6 pt-5 border-t border-[#262626]">
               <p className="text-[11px] font-mono text-neutral-400 text-center mb-2.5 flex items-center justify-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-red-500" />
@@ -366,38 +447,42 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </p>
               
               <div className="grid grid-cols-2 gap-2">
-                <button
+                <motion.button
                   type="button"
+                  whileHover={shouldReduceMotion ? {} : { y: -2, scale: 1.02 }}
+                  whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
                   onClick={() => handleQuickDemo('producer')}
-                  className="p-2.5 rounded-xl bg-[#050505] hover:bg-[#181818] border border-[#262626] text-left text-[11px] transition-all group cursor-pointer"
+                  className="p-2.5 rounded-xl bg-[#050505] hover:bg-[#181818] border border-[#262626] hover:border-red-600/40 text-left text-[11px] transition-all group cursor-pointer"
                 >
                   <p className="font-bold text-red-500 flex items-center gap-1.5">
                     <Clapperboard className="w-3.5 h-3.5" /> Producer Mode
                   </p>
                   <p className="text-neutral-500 text-[10px] font-mono mt-0.5">producer_demo / demo123</p>
-                </button>
+                </motion.button>
 
-                <button
+                <motion.button
                   type="button"
+                  whileHover={shouldReduceMotion ? {} : { y: -2, scale: 1.02 }}
+                  whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
                   onClick={() => handleQuickDemo('viewer')}
-                  className="p-2.5 rounded-xl bg-[#050505] hover:bg-[#181818] border border-[#262626] text-left text-[11px] transition-all group cursor-pointer"
+                  className="p-2.5 rounded-xl bg-[#050505] hover:bg-[#181818] border border-[#262626] hover:border-red-600/40 text-left text-[11px] transition-all group cursor-pointer"
                 >
                   <p className="font-bold text-neutral-200 flex items-center gap-1.5">
                     <Eye className="w-3.5 h-3.5 text-red-500" /> Viewer Mode
                   </p>
                   <p className="text-neutral-500 text-[10px] font-mono mt-0.5">viewer_demo / demo123</p>
-                </button>
+                </motion.button>
               </div>
             </div>
 
-          </div>
+          </motion.div>
 
         </div>
 
       </div>
 
-      {/* Bottom Border Strip */}
-      <div className="w-full bg-[#0B0B0B] border-t border-[#262626] py-1.5 px-2 flex justify-between items-center opacity-80 z-20 overflow-hidden">
+      {/* 4. BOTTOM BORDER STRIP */}
+      <div className="w-full bg-[#0B0B0B]/80 backdrop-blur-md border-t border-[#262626] py-1.5 px-3 flex justify-between items-center z-20 overflow-hidden">
         <p className="text-[10px] text-neutral-500 font-mono text-center w-full">
           CinePredict Decision Intelligence Platform • TMDB 5000 Engine • 2026 Edition
         </p>

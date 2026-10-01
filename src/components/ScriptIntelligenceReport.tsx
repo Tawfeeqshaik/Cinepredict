@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ProjectSimulationInput,
   PredictionResult,
@@ -6,6 +6,7 @@ import {
   ScriptQualitativeFeedback,
   ScriptIntelligenceResult
 } from '../types';
+import { apiExtractScript, apiAnalyzeScript } from '../services/api_client';
 import {
   Upload,
   FileText,
@@ -26,7 +27,13 @@ import {
   BookOpen,
   MessageSquare,
   Activity,
-  FileCheck
+  FileCheck,
+  ChevronDown,
+  ChevronUp,
+  HelpCircle,
+  TrendingUp,
+  Award,
+  Compass
 } from 'lucide-react';
 
 const SAMPLE_SCRIPTS = [
@@ -77,7 +84,7 @@ A Screenplay by Marcus Kane
 EXT. RAIN-SLICKED ALLEYWAY - NIGHT
 Neon reflections shimmer across oil-stained puddles. Rain drums relentlessly on corrugated tin.
 
-INT. DETECTIVE HUDSON'S SEDAN - CONTINUOUS
+INT. DETECTIVE JACK HUDSON'S SEDAN - CONTINUOUS
 DETECTIVE JACK HUDSON (45, cigarette smoke curling, eyes dark with cynicism) listens through headphones. Static hisses on the tape reel.
 
 HUDSON
@@ -97,32 +104,31 @@ EXT. HARBOR WAREHOUSE - NIGHT
 Fog rolls off the bay. Two shadowy figures stand beside an idling black sedan with diplomatic plates.`
   },
   {
-    title: "Parallel Hearts (Romantic Drama)",
-    genre: "Drama / Romance",
-    text: `PARALLEL HEARTS
-Written by Sarah Jenkins
+    title: "The Last Signal (Survival Sci-Fi)",
+    genre: "Science Fiction / Drama",
+    text: `THE LAST SIGNAL
+Written by David Miller
 
-INT. ANTIQUE BOOKSHOP - DAY
-Sunlight streams through dust motes. Shelves stacked with leather-bound poetry and forgotten letters.
+EXT. DEEP SPACE RELAY STATION DELTA - NIGHT
+Total sensory silence. The solar array is cracked, drifting in cold lunar shadow.
 
-CLAIRE (28, warm, cautious archivist) carefully examines an 1890s journal.
+INT. COMMS COMPARTMENT - CONTINUOUS
+DR. TARA REID (35, astrophysicist, exhausted) works by red emergency battery light. 
 
-LEO (30, architect, observant smile) stands on the rolling ladder, peering down.
+TARA
+Recording log 412. Oxygen reserves at eleven percent. The automated distress beacon went dark three cycles ago.
 
-LEO
-You've been staring at that same passage for twenty minutes.
+She flips a series of manual toggle switches. Static crackles over the headset.
 
-CLAIRE
-Because whoever wrote this was terrified of admitting what they felt. People were more patient a century ago.
+TARA (CONT'D)
+If Earth station receives this... do not send a rescue team to coordinates Seven-Alpha. The anomaly isn't a dead star. It's a localized gravity collapse.
 
-LEO
-(stepping down)
-Or maybe they just didn't have cell phones to ruin the mystery.
+The station groans under intense tidal shear. Hull plating buckles.
 
-Claire laughs, brushing a stray lock of hair behind her ear. A quiet, charged moment passes between them.
+TARA (CONT'D)
+I'm venting the auxiliary fuel cells to hold orbit for another twenty minutes. That's all the time I have to transmit the telemetry.
 
-CLAIRE
-Are you going to buy that blueprint or just critique my reading speed?`
+She keys the high-gain transmission array. Progress bar pulses: 12%... 24%...`
   }
 ];
 
@@ -131,8 +137,8 @@ interface ScriptIntelligenceReportProps {
 }
 
 export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> = ({ onSimulate }) => {
-  const [scriptText, setScriptText] = useState('');
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [scriptText, setScriptText] = useState(SAMPLE_SCRIPTS[0].text);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>('Project Horizon (Sci-Fi Spec Script).fountain');
   
   // Pipeline states
   const [extracting, setExtracting] = useState(false);
@@ -140,10 +146,11 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
   const [analyzing, setAnalyzing] = useState(false);
   const [reportResult, setReportResult] = useState<ScriptIntelligenceResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showCalculationBreakdown, setShowCalculationBreakdown] = useState(false);
 
   // Editable confirmation values
-  const [confirmedTitle, setConfirmedTitle] = useState('');
-  const [confirmedRuntime, setConfirmedRuntime] = useState(120);
+  const [confirmedTitle, setConfirmedTitle] = useState('Project Horizon');
+  const [confirmedRuntime, setConfirmedRuntime] = useState(115);
   const [confirmedBudget, setConfirmedBudget] = useState(65000000);
   const [confirmedCastPop, setConfirmedCastPop] = useState(72);
   const [confirmedGenres, setConfirmedGenres] = useState<string[]>(['Science Fiction', 'Action']);
@@ -152,7 +159,12 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
 
   const availableGenres = ['Action', 'Adventure', 'Science Fiction', 'Fantasy', 'Drama', 'Comedy', 'Thriller', 'Horror', 'Romance', 'Crime'];
 
-  // Handle File Upload (PDF, DOCX, TXT)
+  // Auto-extract on initial mount
+  useEffect(() => {
+    runExtraction(SAMPLE_SCRIPTS[0].text, 'Project Horizon (Sci-Fi Spec Script).fountain');
+  }, []);
+
+  // Handle File Upload (PDF, DOCX, TXT, Fountain, FDX)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -162,17 +174,30 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
 
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const content = event.target?.result as string;
+      let content = (event.target?.result as string) || '';
+      
+      // If binary artifacts exist (e.g. from raw PDF/DOCX byte stream), extract clean readable text blocks
+      if (/[\x00-\x08\x0E-\x1F]/.test(content)) {
+        const cleanLines = content
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ')
+          .split(/[\r\n]+/)
+          .map(l => l.trim())
+          .filter(l => l.length > 2 && /^[A-Za-z0-9\s.,!?'"():;/\-]+$/.test(l));
+        
+        if (cleanLines.length > 5) {
+          content = cleanLines.join('\n');
+        }
+      }
+
       setScriptText(content);
       await runExtraction(content, file.name);
     };
 
-    if (file.type === 'application/pdf' || file.name.endsWith('.pdf') || file.name.endsWith('.docx')) {
-      // Read as text or inform user about client extraction
-      reader.readAsText(file);
-    } else {
-      reader.readAsText(file);
-    }
+    reader.onerror = () => {
+      setErrorMsg('Failed to read file. Please ensure it is a valid PDF, DOCX, or TXT file.');
+    };
+
+    reader.readAsText(file);
   };
 
   // Load a Pre-Built Sample
@@ -194,45 +219,18 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/script/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, fileName })
-      });
-
-      const data = await res.json();
-      if (data.extraction) {
-        const ext: ScriptExtractionMetrics = data.extraction;
+      const ext = await apiExtractScript(text, fileName);
+      if (ext) {
         setExtractedMetrics(ext);
         setConfirmedTitle(ext.title);
         setConfirmedRuntime(ext.estimatedRuntime);
         setConfirmedGenres(ext.detectedGenres.length > 0 ? ext.detectedGenres : ['Drama']);
       } else {
-        throw new Error('Extraction response missing.');
+        throw new Error('Could not parse screenplay structure. Please ensure the document contains dialogue or slugline cues.');
       }
     } catch (err: any) {
-      console.error('Script extraction failed:', err);
-      setErrorMsg('Extraction encountered an error. You can still calibrate values manually below.');
-      // Local fallback extraction
-      const words = text.split(/\s+/).length;
-      const pages = Math.max(1, Math.round(words / 240));
-      const fallbackExt: ScriptExtractionMetrics = {
-        title: fileName || 'Uploaded Script Project',
-        pageCount: pages,
-        estimatedRuntime: Math.min(220, Math.max(75, pages)),
-        sceneCount: Math.max(5, Math.round(pages / 2.5)),
-        dialoguePercentage: 45,
-        actionPercentage: 55,
-        characterCount: 4,
-        detectedCharacters: ['Lead Character', 'Antagonist', 'Support'],
-        detectedGenres: ['Drama', 'Thriller'],
-        detectedKeywords: ['dialogue', 'story', 'scene'],
-        wordCount: words
-      };
-      setExtractedMetrics(fallbackExt);
-      setConfirmedTitle(fallbackExt.title);
-      setConfirmedRuntime(fallbackExt.estimatedRuntime);
-      setConfirmedGenres(fallbackExt.detectedGenres);
+      console.error('Script extraction error:', err);
+      setErrorMsg(err.message || 'Failed to extract screenplay dimensions. Please check file formatting.');
     } finally {
       setExtracting(false);
     }
@@ -262,22 +260,15 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
       const quantResult = await onSimulate(simInput);
 
       // 2. Run Qualitative Gemini Script Analysis
-      const qualRes = await fetch('/api/script/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          metrics: {
-            ...extractedMetrics,
-            title: confirmedTitle,
-            estimatedRuntime: confirmedRuntime,
-            detectedGenres: confirmedGenres
-          },
-          text: scriptText
-        })
-      });
-
-      const qualData = await qualRes.json();
-      const qualFeedback: ScriptQualitativeFeedback = qualData.qualitativeFeedback;
+      const qualFeedback = await apiAnalyzeScript(
+        {
+          ...extractedMetrics,
+          title: confirmedTitle,
+          estimatedRuntime: confirmedRuntime,
+          detectedGenres: confirmedGenres
+        },
+        scriptText
+      );
 
       setReportResult({
         extraction: {
@@ -291,7 +282,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
       });
     } catch (err: any) {
       console.error('Failed to generate script intelligence report:', err);
-      setErrorMsg('Analysis failed. Please try again.');
+      setErrorMsg('Analysis failed. Please try again or calibrate values.');
     } finally {
       setAnalyzing(false);
     }
@@ -318,7 +309,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
   };
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="space-y-8 font-sans pb-12">
 
       {/* HEADER BANNER */}
       <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 sm:p-8 space-y-4 shadow-xl">
@@ -344,12 +335,12 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
 
           <div className="flex items-center gap-2 text-xs font-mono text-neutral-400 bg-[#050505] px-3.5 py-2 rounded-xl border border-[#262626]">
             <ShieldCheck className="w-4 h-4 text-green-400" />
-            <span>Honest Quantitative ML + Uncoupled AI Narrative Analysis</span>
+            <span>Honest Pre-Release ML + Uncoupled Narrative Feedback</span>
           </div>
         </div>
 
         <p className="text-xs text-neutral-300 leading-relaxed max-w-4xl">
-          Upload a screenplay, treatment, or scene outline. CinePredict extracts key screenplay structural dimensions, evaluates the project through the <strong>Model A Pre-Release Machine Learning Pipeline</strong>, and generates distinct, uncoupled <strong>Gemini Qualitative Script Notes</strong> for pacing, three-act structure, and revision opportunities.
+          Upload a screenplay or treatment document. CinePredict extracts structural dimensions (INT/EXT ratio, characters, conflict density, runtime), evaluates commercial viability through the <strong>Model A Machine Learning Engine</strong>, and generates distinct, uncoupled <strong>Gemini Qualitative Script Feedback</strong>.
         </p>
       </div>
 
@@ -418,7 +409,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                       key={idx}
                       type="button"
                       onClick={() => handleLoadSample(sample)}
-                      className="px-3 py-1.5 rounded-xl bg-[#050505] border border-[#262626] hover:border-red-600 text-xs text-neutral-300 font-medium transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-xl bg-[#050505] border border-[#262626] hover:border-red-600 text-xs text-neutral-300 font-medium transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <Sparkles className="w-3 h-3 text-red-500" />
                       <span>{sample.title}</span>
@@ -432,7 +423,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                 type="button"
                 onClick={() => runExtraction(scriptText, uploadedFileName || 'Direct Script Input')}
                 disabled={extracting || !scriptText.trim()}
-                className={`w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   extracting || !scriptText.trim()
                     ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
                     : 'bg-[#E50914] text-white hover:bg-[#B20710] shadow-lg shadow-red-600/30'
@@ -461,10 +452,10 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
               <div className="border-b border-[#262626] pb-3">
                 <h3 className="text-base font-bold text-white font-display flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-red-500" />
-                  <span>2. Producer Calibration & Confirmation</span>
+                  <span>2. Producer Calibration &amp; Confirmation</span>
                 </h3>
                 <p className="text-[11px] text-neutral-400 mt-0.5">
-                  Confirm extracted script metrics before feeding to Model A.
+                  Review extracted screenplay metrics before running Model A prediction.
                 </p>
               </div>
 
@@ -486,8 +477,8 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                       <p className="font-bold text-red-400 mt-0.5">{extractedMetrics.dialoguePercentage}%</p>
                     </div>
                     <div className="bg-[#050505] p-2.5 rounded-xl border border-[#262626]">
-                      <p className="text-[9px] text-neutral-500 uppercase">Characters</p>
-                      <p className="font-bold text-white mt-0.5">{extractedMetrics.characterCount}</p>
+                      <p className="text-[9px] text-neutral-500 uppercase">INT/EXT</p>
+                      <p className="font-bold text-white mt-0.5">{extractedMetrics.intExtRatio?.intCount || 0}I / {extractedMetrics.intExtRatio?.extCount || 0}E</p>
                     </div>
                   </div>
 
@@ -564,7 +555,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                             key={g}
                             type="button"
                             onClick={() => handleToggleGenre(g)}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                               isSelected
                                 ? 'bg-[#E50914] text-white shadow-md'
                                 : 'bg-[#050505] text-neutral-400 hover:text-white border border-[#262626]'
@@ -582,7 +573,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                     type="button"
                     onClick={handleRunFullAnalysis}
                     disabled={analyzing}
-                    className={`w-full py-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 mt-4 ${
+                    className={`w-full py-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer ${
                       analyzing
                         ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
                         : 'bg-[#E50914] text-white hover:bg-[#B20710] shadow-xl shadow-red-600/40'
@@ -591,7 +582,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                     {analyzing ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Running Model A Prediction & Gemini Narrative Analysis...</span>
+                        <span>Evaluating Screenplay &amp; Generating Dual-Engine Intelligence...</span>
                       </>
                     ) : (
                       <>
@@ -629,7 +620,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                 {reportResult.extraction.title}
               </h3>
               <p className="text-xs text-neutral-400 font-mono mt-0.5">
-                {reportResult.extraction.pageCount} Pages · ~{reportResult.extraction.estimatedRuntime} Mins · {reportResult.extraction.sceneCount} Scenes · {reportResult.extraction.detectedGenres.join(', ')}
+                {reportResult.extraction.pageCount} Pages · ~{reportResult.extraction.estimatedRuntime} Mins · {reportResult.extraction.sceneCount} Scenes · {reportResult.extraction.detectedGenres.join(', ')} · {reportResult.extraction.intExtRatio?.ratioText}
               </p>
             </div>
 
@@ -637,7 +628,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
               <button
                 type="button"
                 onClick={handleReset}
-                className="px-4 py-2 bg-[#050505] hover:bg-[#181818] text-neutral-300 border border-[#262626] rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+                className="px-4 py-2 bg-[#050505] hover:bg-[#181818] text-neutral-300 border border-[#262626] rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Analyze Another Script</span>
@@ -646,7 +637,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="px-4 py-2 bg-[#E50914] hover:bg-[#B20710] text-white rounded-xl text-xs font-bold shadow-md transition-all"
+                className="px-4 py-2 bg-[#E50914] hover:bg-[#B20710] text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer"
               >
                 Export Report
               </button>
@@ -671,7 +662,7 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                         Quantitative Machine Learning Engine
                       </span>
                       <h3 className="text-xl font-extrabold text-white font-display">
-                        Data-Driven Success Probability (Model A)
+                        Success Probability &amp; Risk (Model A)
                       </h3>
                     </div>
                   </div>
@@ -681,90 +672,165 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                   </span>
                 </div>
 
-                {/* Score & Risk Hero Card */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className={`p-5 rounded-2xl border flex flex-col justify-between space-y-2 ${
-                    reportResult.quantitativePrediction.riskLevel === 'Low'
-                      ? 'bg-green-950/30 border-green-800/40'
-                      : reportResult.quantitativePrediction.riskLevel === 'Moderate'
-                      ? 'bg-amber-950/30 border-amber-800/40'
-                      : 'bg-red-950/30 border-red-800/40'
-                  }`}>
-                    <p className={`text-[10px] font-mono font-bold uppercase tracking-widest ${
-                      reportResult.quantitativePrediction.riskLevel === 'Low' ? 'text-green-400' : reportResult.quantitativePrediction.riskLevel === 'Moderate' ? 'text-amber-400' : 'text-red-400'
-                    }`}>
-                      Model A Predicted Probability
-                    </p>
-                    <p className="text-4xl font-extrabold text-white font-display">
+                {/* 4-Metric Grid: Probability, Confidence, Risk, Evidence */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  
+                  {/* Metric 1: Success Probability */}
+                  <div className="bg-[#050505] p-3.5 rounded-2xl border border-red-600/30 flex flex-col justify-between">
+                    <p className="text-[9px] font-mono font-bold text-neutral-400 uppercase">Success Prob</p>
+                    <p className="text-2xl sm:text-3xl font-black text-red-500 font-display mt-1">
                       {(reportResult.quantitativePrediction.successProbability * 100).toFixed(0)}%
                     </p>
-                    <p className="text-xs text-neutral-300 font-mono">
-                      Calibrated Prob: {(reportResult.quantitativePrediction.calibratedProbability * 100).toFixed(0)}%
-                    </p>
+                    <p className="text-[9px] text-neutral-400 font-mono mt-0.5">Calibrated</p>
                   </div>
 
-                  <div className="p-5 rounded-2xl bg-[#050505] border border-[#262626] flex flex-col justify-between space-y-2">
-                    <p className="text-[10px] font-mono font-bold text-neutral-400 uppercase tracking-widest">
-                      Risk Classification
-                    </p>
-                    <p className={`text-2xl font-extrabold font-display ${
-                      reportResult.quantitativePrediction.riskLevel === 'Low' ? 'text-green-400' : reportResult.quantitativePrediction.riskLevel === 'Moderate' ? 'text-amber-400' : 'text-red-400'
+                  {/* Metric 2: Model Confidence */}
+                  <div className="bg-[#050505] p-3.5 rounded-2xl border border-[#262626] flex flex-col justify-between">
+                    <p className="text-[9px] font-mono font-bold text-neutral-400 uppercase">Confidence</p>
+                    <p className={`text-xl font-extrabold font-display mt-1 ${
+                      reportResult.extraction.modelConfidence === 'High' ? 'text-green-400' :
+                      reportResult.extraction.modelConfidence === 'Medium' ? 'text-amber-400' : 'text-neutral-300'
                     }`}>
-                      {reportResult.quantitativePrediction.riskLevel.toUpperCase()} RISK
+                      {reportResult.extraction.modelConfidence || 'Medium'}
                     </p>
-                    <p className="text-[10px] text-neutral-400 font-mono">
-                      Decision Threshold: {(reportResult.quantitativePrediction.decisionThresholdUsed * 100).toFixed(0)}%
+                    <p className="text-[9px] text-neutral-500 font-mono mt-0.5">Sample Size</p>
+                  </div>
+
+                  {/* Metric 3: Risk Classification */}
+                  <div className="bg-[#050505] p-3.5 rounded-2xl border border-[#262626] flex flex-col justify-between">
+                    <p className="text-[9px] font-mono font-bold text-neutral-400 uppercase">Risk Level</p>
+                    <p className={`text-xl font-extrabold font-display mt-1 ${
+                      reportResult.quantitativePrediction.riskLevel === 'Low' ? 'text-green-400' :
+                      reportResult.quantitativePrediction.riskLevel === 'Moderate' ? 'text-amber-400' : 'text-red-400'
+                    }`}>
+                      {reportResult.quantitativePrediction.riskLevel.toUpperCase()}
                     </p>
+                    <p className="text-[9px] text-neutral-500 font-mono mt-0.5">Commercial</p>
                   </div>
+
+                  {/* Metric 4: Evidence Strength */}
+                  <div className="bg-[#050505] p-3.5 rounded-2xl border border-[#262626] flex flex-col justify-between">
+                    <p className="text-[9px] font-mono font-bold text-neutral-400 uppercase">Evidence</p>
+                    <p className="text-xl font-extrabold text-blue-400 font-display mt-1">
+                      {reportResult.extraction.evidenceStrength || 'Moderate'}
+                    </p>
+                    <p className="text-[9px] text-neutral-500 font-mono mt-0.5">{reportResult.extraction.sceneCount} scenes</p>
+                  </div>
+
                 </div>
 
-                {/* SHAP Positive Contributors */}
-                <div className="space-y-2">
-                  <p className="text-[10px] font-mono font-bold text-green-400 uppercase tracking-widest">
-                    Key Positive Structural Drivers
+                {/* Small Sample Warning Alert */}
+                {reportResult.extraction.smallSampleWarning && (
+                  <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-800/60 text-amber-200 text-xs flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-amber-300">Limited Screenplay Evidence Notice</p>
+                      <p className="text-[11px] text-amber-200/80 leading-relaxed mt-0.5">
+                        This evaluation is derived from an excerpt or treatment sample (~{reportResult.extraction.pageCount} pages). Model confidence is reduced accordingly while the probability score reflects intrinsic structural and genre signals.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Model Explanation Disclaimer */}
+                <div className="p-3 bg-[#050505] rounded-xl border border-[#262626] text-[11px] text-neutral-400 font-sans leading-relaxed">
+                  <p>
+                    <strong className="text-neutral-300">Success Target Definition:</strong> Global Theatrical Breakeven (&ge;2.0x Production Budget) &amp; Audience Quality Threshold (TMDB Rating &ge; 6.5 with &ge; 100 verified ratings).
                   </p>
-                  <div className="space-y-2">
-                    {reportResult.quantitativePrediction.topDrivers
-                      .filter(d => d.direction === 'positive')
-                      .slice(0, 3)
-                      .map((driver, i) => (
-                        <div key={i} className="p-3 rounded-xl bg-[#050505] border border-[#262626] flex items-start gap-2.5">
-                          <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-xs font-semibold text-white">{driver.displayName}</p>
-                            <p className="text-[11px] text-neutral-400">{driver.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-
-                {/* SHAP Limiting Signals */}
-                <div className="space-y-2">
-                  <p className="text-[10px] font-mono font-bold text-red-400 uppercase tracking-widest">
-                    Limiting Pre-Release Signals
+                  <p className="text-[10px] text-neutral-500 font-mono mt-1">
+                    * This is a statistical model estimate based on available structural screenplay and historical box-office signals, not an absolute guarantee.
                   </p>
-                  <div className="space-y-2">
-                    {reportResult.quantitativePrediction.topDrivers
-                      .filter(d => d.direction === 'negative')
-                      .slice(0, 3)
-                      .map((driver, i) => (
-                        <div key={i} className="p-3 rounded-xl bg-[#050505] border border-[#262626] flex items-start gap-2.5">
-                          <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-xs font-semibold text-white">{driver.displayName}</p>
-                            <p className="text-[11px] text-neutral-400">{driver.description}</p>
-                          </div>
-                        </div>
-                      ))}
+                </div>
+
+                {/* POSITIVE SIGNALS */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-mono font-bold text-green-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Positive Contributing Signals (+)</span>
+                  </p>
+                  <div className="space-y-1.5">
+                    {(reportResult.extraction.positiveSignals || []).map((sig, i) => (
+                      <div key={i} className="p-2.5 rounded-xl bg-[#050505] border border-green-950/60 text-xs text-neutral-200 flex items-start gap-2">
+                        <span className="text-green-400 font-bold font-mono">+</span>
+                        <p className="text-[11px]">{sig}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Model A Integrity Disclaimer Tag */}
+                {/* NEGATIVE / LIMITING SIGNALS */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-mono font-bold text-red-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>Limiting Signals &amp; Missing Evidence (-)</span>
+                  </p>
+                  <div className="space-y-1.5">
+                    {(reportResult.extraction.negativeSignals || []).map((sig, i) => (
+                      <div key={i} className="p-2.5 rounded-xl bg-[#050505] border border-red-950/60 text-xs text-neutral-300 flex items-start gap-2">
+                        <span className="text-red-400 font-bold font-mono">-</span>
+                        <p className="text-[11px]">{sig}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* EXPANDABLE SCORE CALCULATION BREAKDOWN */}
+                <div className="pt-2 border-t border-[#262626]">
+                  <button
+                    type="button"
+                    onClick={() => setShowCalculationBreakdown(!showCalculationBreakdown)}
+                    className="w-full py-2.5 px-4 bg-[#050505] hover:bg-[#181818] border border-[#262626] rounded-xl text-xs font-bold text-neutral-300 flex items-center justify-between transition-all cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Sliders className="w-3.5 h-3.5 text-red-500" />
+                      <span>How This Score Was Calculated (8 Feature Groups)</span>
+                    </span>
+                    {showCalculationBreakdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+
+                  {showCalculationBreakdown && (
+                    <div className="mt-3 overflow-x-auto rounded-2xl border border-[#262626] bg-[#050505]">
+                      <table className="w-full text-left text-xs font-sans">
+                        <thead>
+                          <tr className="border-b border-[#262626] text-neutral-400 font-mono text-[10px] uppercase">
+                            <th className="py-2.5 px-3">Feature Group</th>
+                            <th className="py-2.5 px-2">Status</th>
+                            <th className="py-2.5 px-2 text-center">Score</th>
+                            <th className="py-2.5 px-2 text-center">Weight</th>
+                            <th className="py-2.5 px-3">Explanation</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#1e1e1e]">
+                          {(reportResult.extraction.scoreBreakdown || []).map((fg, idx) => (
+                            <tr key={idx} className="hover:bg-[#141414]/60 transition-colors">
+                              <td className="py-2.5 px-3 font-semibold text-white text-[11px]">{fg.category}</td>
+                              <td className="py-2.5 px-2">
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono ${
+                                  fg.status === 'Available' ? 'bg-green-950 text-green-300 border border-green-800' :
+                                  fg.status === 'Estimated' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
+                                  'bg-neutral-900 text-neutral-400 border border-neutral-700'
+                                }`}>
+                                  {fg.status}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-2 text-center font-mono font-bold text-white text-[11px]">
+                                {fg.status === 'Not available' ? '—' : `${fg.score}/100`}
+                              </td>
+                              <td className="py-2.5 px-2 text-center font-mono text-neutral-400 text-[10px]">{fg.weight}</td>
+                              <td className="py-2.5 px-3 text-[11px] text-neutral-300">{fg.explanation}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Model A Provenance Note */}
                 <div className="p-3 rounded-xl bg-[#050505] border border-[#262626] text-[10px] text-neutral-500 font-mono flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-green-400 flex-shrink-0" />
                   <span>
-                    Model A uses only verified pre-release metadata. Post-release popularity and review metrics are isolated to prevent leakage.
+                    Historical Dataset Connected (4,800 TMDB Verified Films). Zero post-release leakage.
                   </span>
                 </div>
 
@@ -800,8 +866,50 @@ export const ScriptIntelligenceReport: React.FC<ScriptIntelligenceReportProps> =
                 <div className="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-700 text-xs text-neutral-300 flex items-center gap-2.5">
                   <Info className="w-4 h-4 text-red-400 flex-shrink-0" />
                   <p className="text-[11px] leading-relaxed">
-                    <strong>Qualitative Narrative Analysis:</strong> Generated via deep text evaluation. This analysis is uncoupled and never combined mathematically with Model A's historical probability score.
+                    <strong>Qualitative Narrative Analysis:</strong> Uncoupled from Model A. Narrative analysis does not alter the historical mathematical probability score.
                   </p>
+                </div>
+
+                {/* Screenplay Deep Extraction Grid */}
+                <div className="bg-[#050505] p-4 rounded-2xl border border-[#262626] space-y-3">
+                  <p className="text-xs font-bold text-white font-display flex items-center gap-2">
+                    <Compass className="w-3.5 h-3.5 text-red-500" />
+                    <span>Extracted Screenplay Dimensions</span>
+                  </p>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-[11px]">
+                    <div className="bg-[#141414] p-2.5 rounded-xl border border-[#262626]">
+                      <p className="text-[9px] font-mono text-neutral-500 uppercase">Protagonist</p>
+                      <p className="font-bold text-white mt-0.5 truncate">{reportResult.extraction.protagonist || 'Lead'}</p>
+                    </div>
+                    <div className="bg-[#141414] p-2.5 rounded-xl border border-[#262626]">
+                      <p className="text-[9px] font-mono text-neutral-500 uppercase">Opposing Force</p>
+                      <p className="font-bold text-neutral-300 mt-0.5 truncate">{reportResult.extraction.antagonist || 'Conflict Force'}</p>
+                    </div>
+                    <div className="bg-[#141414] p-2.5 rounded-xl border border-[#262626]">
+                      <p className="text-[9px] font-mono text-neutral-500 uppercase">Conflict Density</p>
+                      <p className="font-bold text-red-400 mt-0.5">{reportResult.extraction.conflictDensity || 'Moderate'}</p>
+                    </div>
+                    <div className="bg-[#141414] p-2.5 rounded-xl border border-[#262626]">
+                      <p className="text-[9px] font-mono text-neutral-500 uppercase">Pacing</p>
+                      <p className="font-bold text-white mt-0.5 truncate">{reportResult.extraction.pacing || 'Moderate'}</p>
+                    </div>
+                    <div className="bg-[#141414] p-2.5 rounded-xl border border-[#262626]">
+                      <p className="text-[9px] font-mono text-neutral-500 uppercase">Franchise Potential</p>
+                      <p className="font-bold text-blue-400 mt-0.5 truncate">{reportResult.extraction.franchisePotential || 'Standalone'}</p>
+                    </div>
+                    <div className="bg-[#141414] p-2.5 rounded-xl border border-[#262626]">
+                      <p className="text-[9px] font-mono text-neutral-500 uppercase">Complexity</p>
+                      <p className="font-bold text-neutral-300 mt-0.5 truncate">{reportResult.extraction.productionComplexity || 'Standard'}</p>
+                    </div>
+                  </div>
+
+                  {reportResult.extraction.themes && reportResult.extraction.themes.length > 0 && (
+                    <div className="pt-2 border-t border-[#1e1e1e] flex items-center gap-2 text-[11px]">
+                      <span className="font-mono text-neutral-500 text-[10px]">THEMES:</span>
+                      <span className="text-neutral-300 font-medium">{reportResult.extraction.themes.join(' • ')}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Pacing & Dialogue/Action Ratio Section */}

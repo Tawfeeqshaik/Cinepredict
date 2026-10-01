@@ -118,6 +118,7 @@ export interface ProjectSimulationInput {
   release_year: number;
   production_company: string;
   top_cast_popularity: number;
+  original_language?: string;
   modelAlgorithm?: ModelAlgorithm;
   decisionThreshold?: number;
 }
@@ -433,6 +434,9 @@ export interface PostReleaseDiagnostic {
   actualVoteAverage: number;
   actualVoteCount: number;
   actualRevenue: number;
+  predictedRevenue: number;
+  absoluteError: number; // in $M
+  percentageError: number; // in %
   actualTarget: number;
   predictedProbability: number;
   predictedRiskLevel: 'Low' | 'Moderate' | 'High';
@@ -480,6 +484,34 @@ export interface ScriptExtractionMetrics {
   detectedGenres: string[];
   detectedKeywords: string[];
   wordCount: number;
+  // Enhanced Screenplay Dimensions
+  intExtRatio?: { intCount: number; extCount: number; ratioText: string };
+  locations?: string[];
+  protagonist?: string;
+  antagonist?: string;
+  actStructure?: { act1Scenes: number; act2Scenes: number; act3Scenes: number };
+  conflictDensity?: 'High' | 'Moderate' | 'Low' | 'Not detected';
+  pacing?: 'Fast / Kinetic' | 'Moderate / Steady' | 'Deliberate / Atmospheric' | 'Not detected';
+  emotionalProgression?: string;
+  themes?: string[];
+  stakes?: string;
+  climax?: string;
+  endingType?: 'Definitive / Resolved' | 'Ambiguous' | 'Cliffhanger' | 'Tragic' | 'Not detected';
+  franchisePotential?: 'Standalone' | 'High Sequel Potential' | 'Franchise Starter' | 'Not detected';
+  productionComplexity?: 'Moderate / Standard' | 'High VFX / Multi-Location' | 'Low / Single-Location' | 'Not detected';
+  evidenceStrength?: 'Strong' | 'Moderate' | 'Limited' | 'Insufficient';
+  smallSampleWarning?: boolean;
+  modelConfidence?: 'High' | 'Medium' | 'Low' | 'Very Low';
+  scoreBreakdown?: {
+    category: string;
+    score: number; // 0-100
+    weight: string; // e.g. "20%"
+    direction: 'positive' | 'negative' | 'neutral';
+    status: 'Available' | 'Not available' | 'Estimated';
+    explanation: string;
+  }[];
+  positiveSignals?: string[];
+  negativeSignals?: string[];
 }
 
 export interface ScriptQualitativeFeedback {
@@ -502,5 +534,199 @@ export interface ScriptIntelligenceResult {
   extraction: ScriptExtractionMetrics;
   quantitativePrediction: PredictionResult;
   qualitativeFeedback: ScriptQualitativeFeedback;
+}
+
+// ==========================================
+// AUDIENCE LAB & LIVE CINEMA INTELLIGENCE TYPES
+// ==========================================
+
+export interface DecisionTestOption {
+  testType: 'title' | 'poster' | 'runtime' | 'positioning';
+  questionTitle: string;
+  optionA: string;
+  optionB: string;
+  optionAImage?: string;
+  optionBImage?: string;
+  votesA: number;
+  votesB: number;
+}
+
+export interface AudienceQuestion {
+  id: string;
+  text: string;
+  type: 'would_watch' | 'interest_scale' | 'genre_appeal' | 'expected_quality' | 'recommend' | 'text_feedback' | 'choice_ab';
+  options?: string[];
+}
+
+export interface AudienceConceptTest {
+  id: string;
+  producerId: string;
+  producerUsername: string;
+  title: string;
+  synopsis: string;
+  genres: string[];
+  runtime: number;
+  language: string;
+  releasePeriod: string;
+  targetBudget: number;
+  topCast: string[];
+  director?: string;
+  posterUrl?: string;
+  modelAProbability: number; // Pre-Release ML prediction (kept secret from viewer prior to voting)
+  riskLevel: 'Low' | 'Moderate' | 'High';
+  questions: AudienceQuestion[];
+  isABTest?: boolean;
+  variationB?: {
+    title: string;
+    synopsis: string;
+    genres: string[];
+    runtime: number;
+    targetBudget: number;
+    modelAProbability: number;
+  };
+  decisionTest?: DecisionTestOption;
+  status: 'testing' | 'pre-production' | 'released' | 'archived';
+  createdAt: string;
+  versionNumber: number;
+  parentProjectId?: string;
+}
+
+export interface AudienceResponse {
+  id: string;
+  testId: string;
+  viewerId: string;
+  viewerUsername: string;
+  votedAt: string;
+  wouldWatch: 'definitely' | 'maybe' | 'probably_not';
+  interestLevel: number; // 1 to 5
+  genreAppeal?: number; // 1 to 5
+  expectedQuality?: number; // 1 to 5
+  wouldRecommend?: 'yes' | 'maybe' | 'no';
+  feedbackText?: string;
+  choiceAB?: 'A' | 'B';
+  viewerPreferredGenre?: string;
+}
+
+export interface AudienceValidationAnalytics {
+  testId: string;
+  totalResponses: number;
+  definitelyPercentage: number;
+  maybePercentage: number;
+  probablyNotPercentage: number;
+  avgInterestScore: number; // e.g. 4.1 / 5
+  audienceInterestPercentage: number; // e.g. 82%
+  modelAProbability: number; // e.g. 64%
+  divergencePoints: number; // e.g. +18
+  divergenceInterpretation: string;
+  isSampleReliable: boolean; // true if >= 10 responses
+  sampleReliabilityWarning?: string;
+  topPositiveSignals: string[];
+  topConcerns: string[];
+  recommendedExperiment: string;
+  segmentation?: {
+    byGenre: { genre: string; count: number; avgInterest: number }[];
+    isDataSufficient: boolean;
+  };
+  abTestComparison?: {
+    preferenceA: number;
+    preferenceB: number;
+    winner: 'A' | 'B' | 'TIE';
+    deltaPoints: number;
+    modelA: number;
+    modelB: number;
+    responsesA: number;
+    responsesB: number;
+  };
+  decisionTestResult?: {
+    votesA: number;
+    votesB: number;
+    percentA: number;
+    percentB: number;
+    winner: 'A' | 'B' | 'TIE';
+  };
+}
+
+export interface ConceptVersionRecord {
+  versionNumber: number;
+  title: string;
+  budget: number;
+  runtime: number;
+  genres: string[];
+  releaseMonth: number;
+  modelAProbability: number;
+  audienceInterest?: number;
+  changeNote: string;
+  createdAt: string;
+}
+
+export interface ProducerTrackedProject {
+  id: string;
+  producerUsername: string;
+  title: string;
+  synopsis: string;
+  genres: string[];
+  budget: number;
+  runtime: number;
+  releaseMonth: number;
+  releaseYear: number;
+  status: 'Concept' | 'Testing' | 'Pre-Production' | 'Released' | 'Tracking' | 'Completed';
+  currentVersion: number;
+  versions: ConceptVersionRecord[];
+  activeTestId?: string;
+  totalAudienceResponses: number;
+  latestAudienceInterest?: number;
+  latestModelAProbability: number;
+  divergencePoints?: number;
+  divergenceAlert?: string;
+  actualOutcomeSignal?: {
+    rating: number;
+    voteCount: number;
+    popularity: number;
+    status: 'Tracking Positively' | 'Diverging' | 'Aligned' | 'Awaiting Release';
+    trend: 'up' | 'steady' | 'down';
+  };
+  createdAt: string;
+  lastUpdated: string;
+}
+
+export interface LiveCinemaMovie {
+  id: number;
+  title: string;
+  releaseDate: string;
+  genres: string[];
+  rating: number; // TMDB vote_average
+  voteCount: number; // TMDB vote_count
+  popularity: number; // TMDB popularity
+  overview: string;
+  posterPath?: string;
+  language: string;
+  category: 'trending' | 'now_playing' | 'popular' | 'top_rated' | 'upcoming';
+  trendDirection: 'up' | 'down' | 'neutral';
+  popularityMomentumPercent?: number; // e.g. +29.7%
+  pulseScore: number; // 0-100 composite pulse index
+  pulseSignal: 'Strong' | 'Steady' | 'Cooling' | 'Emerging';
+  historicalModelPrediction?: number; // Pre-release model prediction if recorded
+  predictionTrackingStatus?: 'Tracking Positively' | 'Diverging' | 'Aligned' | 'Awaiting Release';
+  predictionDivergencePoints?: number;
+  predictionDivergenceAlert?: string;
+}
+
+export interface LiveMarketDashboardData {
+  lastUpdated: string;
+  dataSource: string;
+  trendingNow: LiveCinemaMovie[];
+  nowPlaying: LiveCinemaMovie[];
+  popularThisWeek: LiveCinemaMovie[];
+  topRated: LiveCinemaMovie[];
+  upcomingReleases: LiveCinemaMovie[];
+  trendingGenres: {
+    genre: string;
+    trend: 'up' | 'steady' | 'down';
+    popularityAvg: number;
+    catalogGrowthPercent: number;
+    explanation: string;
+  }[];
+  topRisingTitles: LiveCinemaMovie[];
+  topDecliningTitles: LiveCinemaMovie[];
 }
 

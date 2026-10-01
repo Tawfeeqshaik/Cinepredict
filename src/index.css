@@ -5,12 +5,22 @@
     --font-heading: 'Plus Jakarta Sans', sans-serif;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+
+    /* Motion Tokens */
+    --dur-fast: 150ms;
+    --dur-base: 250ms;
+    --dur-slow: 450ms;
+    --dur-ambient: 28s;
+    --ease-ui: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   body {
     background-color: #050505;
     color: #FFFFFF;
     font-family: var(--font-sans);
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -26,14 +36,187 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Keyframe Animations */
+/* ==========================================================================
+   CINEMA ANIMATIONS & KEYFRAMES
+   ========================================================================== */
+
+/* 1. Poster Marquee Loops */
+@keyframes marqueeUp {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+@keyframes marqueeDown {
+  0% { transform: translateY(-50%); }
+  100% { transform: translateY(0); }
+}
+
+.poster-marquee-up {
+  animation: marqueeUp 48s linear infinite;
+  will-change: transform;
+}
+
+.poster-marquee-down {
+  animation: marqueeDown 52s linear infinite;
+  will-change: transform;
+}
+
+.poster-marquee-up-slow {
+  animation: marqueeUp 64s linear infinite;
+  will-change: transform;
+}
+
+/* 2. Film Grain Overlay */
+@keyframes filmGrainAnimation {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-1.5%, 2%); }
+  40% { transform: translate(2%, -1.5%); }
+  60% { transform: translate(-2%, -1%); }
+  80% { transform: translate(1.5%, 1.5%); }
+}
+
+.film-grain {
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 0);
+  background-size: 4px 4px;
+  pointer-events: none;
+  opacity: 0.35;
+  animation: filmGrainAnimation 0.6s steps(4) infinite;
+  will-change: transform;
+}
+
+/* 3. Ambient Cinema Light Blooms */
+@keyframes bloomPulseA {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate(40px, -30px) scale(1.2);
+    opacity: 0.45;
+  }
+}
+
+@keyframes bloomPulseB {
+  0%, 100% {
+    transform: translate(0, 0) scale(1.1);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translate(-50px, 40px) scale(0.9);
+    opacity: 0.38;
+  }
+}
+
+.bloom-drift-a {
+  animation: bloomPulseA 18s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.bloom-drift-b {
+  animation: bloomPulseB 24s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* 4. Film Sprocket / Reel Edge Strips */
+@keyframes sprocketRoll {
+  from { background-position-y: 0px; }
+  to { background-position-y: 120px; }
+}
+
+.sprocket-strip-left {
+  background-image: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.15) 3px, transparent 3.5px);
+  background-size: 16px 20px;
+  animation: sprocketRoll 12s linear infinite;
+}
+
+.sprocket-strip-right {
+  background-image: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.15) 3px, transparent 3.5px);
+  background-size: 16px 20px;
+  animation: sprocketRoll 12s linear infinite reverse;
+}
+
+/* 5. Skeleton Shimmer & Loading */
+@keyframes shimmerWave {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmerWave 1.8s infinite;
+}
+
+/* 6. Reel Spin Motif */
+@keyframes reelSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.reel-spin {
+  animation: reelSpin 8s linear infinite;
+}
+
+.reel-spin-fast {
+  animation: reelSpin 2s linear infinite;
+}
+
+/* 7. Bar Fill */
 @keyframes barFill {
   from { width: 0%; }
   to { width: var(--fill-width, 100%); }
 }
 
 .animate-bar-fill {
-  animation: barFill 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: barFill 0.8s var(--ease-ui) forwards;
+}
+
+/* 8. Reduced Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .poster-marquee-up,
+  .poster-marquee-down,
+  .poster-marquee-up-slow,
+  .film-grain,
+  .bloom-drift-a,
+  .bloom-drift-b,
+  .sprocket-strip-left,
+  .sprocket-strip-right,
+  .reel-spin,
+  .reel-spin-fast {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* Pause animations when tab is hidden to save GPU */
+.pause-animation {
+  animation-play-state: paused !important;
 }
 
 /* Custom Netflix Dark Scrollbar */
