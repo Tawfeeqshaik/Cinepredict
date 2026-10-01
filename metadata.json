@@ -1,0 +1,6 @@
+{
+  "name": "CinePredict",
+  "description": "Data science movie intelligence platform with pre-release AI predictions, content recommendation, SHAP explainability, grounded chatbot, and personalized feeds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
